@@ -1,0 +1,776 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#0F0F1A">
+<title>kansei talk</title>
+<style>
+  :root {
+    --bg: #0F0F1A;
+    --surface: #1A1A2E;
+    --card: #252538;
+    --border: #2E2E4A;
+    --accent: #7B6EF6;
+    --accent2: #A89CF7;
+    --green: #52E5A0;
+    --text: #E8E6F0;
+    --sub: #7A7890;
+    --user-bubble: #2A2A50;
+    --ai-bubble: #1E1E35;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    height: 100%;
+  }
+
+  /* ---- Header ---- */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(15,15,26,0.95); backdrop-filter: blur(16px);
+    padding: calc(env(safe-area-inset-top) + 10px) 16px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .back-btn { background: none; border: none; color: var(--accent2); font-size: 15px; padding: 4px 0; }
+  .header-info { flex: 1; }
+  .header-name { font-size: 16px; font-weight: 700; }
+  .header-status { font-size: 11px; color: var(--sub); margin-top: 1px; }
+  .header-actions { display: flex; gap: 8px; }
+  .header-btn { background: none; border: none; font-size: 18px; padding: 4px; color: var(--sub); }
+  .header-pulse {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green); flex-shrink: 0;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(0.85)} }
+
+  /* ---- Messages ---- */
+  .messages {
+    padding: 16px 16px calc(env(safe-area-inset-bottom) + 120px);
+    display: flex; flex-direction: column; gap: 16px;
+    min-height: 100vh;
+  }
+
+  .msg { display: flex; flex-direction: column; max-width: 85%; }
+  .msg.user { align-self: flex-end; align-items: flex-end; }
+  .msg.ai   { align-self: flex-start; align-items: flex-start; }
+
+  .msg-bubble {
+    padding: 12px 16px; border-radius: 18px;
+    font-size: 15px; line-height: 1.75;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .msg.user .msg-bubble {
+    background: var(--user-bubble);
+    border-radius: 18px 18px 4px 18px;
+  }
+  .msg.ai .msg-bubble {
+    background: var(--ai-bubble);
+    border: 1px solid var(--border);
+    border-radius: 18px 18px 18px 4px;
+  }
+  .msg-time {
+    font-size: 10px; color: var(--sub); margin-top: 4px; padding: 0 4px;
+  }
+  .msg-actions { display: flex; gap: 8px; margin-top: 5px; padding: 0 2px; }
+  .msg-action-btn {
+    background: none; border: none; font-size: 11px; color: var(--sub);
+    padding: 3px 8px; border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .msg-action-btn:active { background: var(--card); }
+
+  /* AI avatar */
+  .ai-avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), #C084FC);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0; margin-bottom: 4px;
+  }
+
+  /* Typing indicator */
+  .typing-bubble {
+    background: var(--ai-bubble); border: 1px solid var(--border);
+    border-radius: 18px 18px 18px 4px;
+    padding: 14px 18px; display: flex; gap: 4px; align-items: center;
+  }
+  .typing-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--sub); animation: typingBounce 1.2s infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typingBounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+  /* Suggestions */
+  .suggestions {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    padding: 0 16px 10px;
+  }
+  .suggestion-btn {
+    font-size: 13px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 100px;
+    padding: 7px 14px; color: var(--accent2);
+    white-space: nowrap; max-width: 240px;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ---- Input bar ---- */
+  .input-bar {
+    position: fixed; left: 0; right: 0;
+    bottom: 0; z-index: 20;
+    background: rgba(15,15,26,0.97); backdrop-filter: blur(16px);
+    border-top: 1px solid var(--border);
+    padding: 10px 12px calc(env(safe-area-inset-bottom) + 10px);
+  }
+  .input-row { display: flex; align-items: flex-end; gap: 8px; }
+  .input-box {
+    flex: 1; background: var(--card); border: 1px solid var(--border);
+    border-radius: 22px; padding: 10px 16px;
+    font-size: 16px; font-family: inherit; color: var(--text);
+    resize: none; min-height: 42px; max-height: 120px;
+    overflow-y: auto; outline: none; line-height: 1.5;
+    -webkit-overflow-scrolling: touch;
+  }
+  .input-box:focus { border-color: var(--accent); }
+  .input-box::placeholder { color: var(--sub); }
+  .send-btn {
+    width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
+    background: var(--accent); border: none; color: #fff; font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 10px rgba(123,110,246,0.4);
+    transition: transform 0.1s;
+  }
+  .send-btn:active { transform: scale(0.93); }
+  .send-btn:disabled { background: var(--border); box-shadow: none; }
+  .mic-input-btn {
+    width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
+    background: var(--card); border: 1px solid var(--border);
+    color: var(--accent2); font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mic-input-btn.recording { background: #3D0A0A; border-color: #FF453A; animation: pulse 1s infinite; }
+
+  /* ---- Emotion tags ---- */
+  .emotion-bar {
+    display: flex; gap: 6px; overflow-x: auto; padding: 6px 12px 0;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .emotion-bar::-webkit-scrollbar { display: none; }
+  .emotion-chip {
+    flex-shrink: 0; font-size: 13px; background: none;
+    border: 1px solid var(--border); border-radius: 100px;
+    padding: 5px 12px; color: var(--sub);
+  }
+  .emotion-chip:active { background: var(--card); }
+
+  /* ---- Mode banner ---- */
+  .mode-banner {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(123,110,246,0.08); border-bottom: 1px solid var(--border);
+    padding: 8px 16px; font-size: 12px; color: var(--accent2);
+  }
+  .mode-banner-icon { font-size: 16px; }
+
+  /* ---- Menu sheet ---- */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 30; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .overlay.open { opacity: 1; pointer-events: auto; }
+  .bottom-sheet {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: var(--surface); border-radius: 20px 20px 0 0;
+    z-index: 31; padding: 6px 16px calc(env(safe-area-inset-bottom) + 20px);
+    transform: translateY(100%); transition: transform 0.25s ease-out;
+    box-shadow: 0 -2px 20px rgba(0,0,0,0.4);
+  }
+  .bottom-sheet.open { transform: translateY(0); }
+  .sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 10px auto 16px; }
+  .menu-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 12px; border-radius: 12px; margin-bottom: 6px;
+    background: var(--card); border: 1px solid var(--border);
+    font-size: 15px; color: var(--text); text-align: left; width: 100%;
+  }
+  .menu-item-icon { font-size: 20px; width: 28px; text-align: center; }
+  .menu-item-text { flex: 1; }
+  .menu-item-sub { font-size: 12px; color: var(--sub); margin-top: 1px; }
+  .menu-close { width: 100%; margin-top: 4px; background: none; border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 15px; color: var(--sub); }
+
+  /* ---- Settings ---- */
+  .form-row { margin-bottom: 12px; }
+  .form-row label { display: block; font-size: 12px; color: var(--sub); font-weight: 600; margin-bottom: 4px; }
+  input[type="text"], select {
+    width: 100%; font-size: 16px; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--bg); color: var(--text); font-family: inherit;
+    -webkit-appearance: none;
+  }
+  input:focus, select:focus { outline: 2px solid var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <button class="back-btn" onclick="location.href='/kansei/draft.html'">← kansei</button>
+  <div class="ai-avatar">✦</div>
+  <div class="header-info">
+    <div class="header-name">kansei talk</div>
+    <div class="header-status" id="headerStatus">思考と感情の会話空間</div>
+  </div>
+  <div class="header-pulse" id="headerPulse"></div>
+  <div class="header-actions">
+    <button class="header-btn" id="menuBtn">⋯</button>
+    <button class="header-btn" id="clearBtn" title="会話をリセット">🗑</button>
+  </div>
+</header>
+
+<div class="mode-banner" id="modeBanner">
+  <span class="mode-banner-icon">🌊</span>
+  <span id="modeBannerText">今、何を感じていますか。どんな小さなことでも話してください。</span>
+</div>
+
+<div class="messages" id="messages"></div>
+
+<div class="suggestions" id="suggestions"></div>
+
+<div class="input-bar">
+  <div class="emotion-bar" id="emotionBar">
+    <button class="emotion-chip" data-text="なんとなく重い気がする">😔 重い</button>
+    <button class="emotion-chip" data-text="頭の中がごちゃごちゃしている">🌀 混乱</button>
+    <button class="emotion-chip" data-text="何かを決めないといけない">⚖️ 決断</button>
+    <button class="emotion-chip" data-text="アイデアがあふれている">✨ 閃き</button>
+    <button class="emotion-chip" data-text="少し疲れている">🌙 疲れ</button>
+    <button class="emotion-chip" data-text="今は落ち着いている">🍃 穏やか</button>
+  </div>
+  <div class="input-row">
+    <button class="mic-input-btn" id="micBtn">🎤</button>
+    <div class="input-box" id="inputBox" contenteditable="true" data-placeholder="話しかけてください"></div>
+    <button class="send-btn" id="sendBtn">↑</button>
+  </div>
+</div>
+
+<!-- Menu -->
+<div class="overlay" id="overlay"></div>
+<div class="bottom-sheet" id="menuSheet">
+  <div class="sheet-handle"></div>
+  <button class="menu-item" id="exportDraftBtn">
+    <span class="menu-item-icon">📝</span>
+    <div class="menu-item-text">
+      <div>この会話を原稿にする</div>
+      <div class="menu-item-sub">draft.html で文章化</div>
+    </div>
+  </button>
+  <button class="menu-item" id="exportMapBtn">
+    <span class="menu-item-icon">🗺</span>
+    <div class="menu-item-text">
+      <div>思考を図にする</div>
+      <div class="menu-item-sub">draft.html の思考整理モードへ</div>
+    </div>
+  </button>
+  <button class="menu-item" id="saveQuickRefBtn">
+    <span class="menu-item-icon">📋</span>
+    <div class="menu-item-text">
+      <div>quick-ref に保存</div>
+      <div class="menu-item-sub">この会話を素材として記録</div>
+    </div>
+  </button>
+  <button class="menu-item" id="settingsMenuBtn">
+    <span class="menu-item-icon">⚙️</span>
+    <div class="menu-item-text">
+      <div>API設定</div>
+      <div class="menu-item-sub">Claude / Gemini / OpenAI</div>
+    </div>
+  </button>
+  <button class="menu-close" id="menuClose">閉じる</button>
+</div>
+
+<div class="overlay" id="settingsOverlay"></div>
+<div class="bottom-sheet" id="settingsSheet">
+  <div class="sheet-handle"></div>
+  <p style="font-size:15px;font-weight:700;margin:0 0 14px;color:var(--text);">⚙️ API設定</p>
+  <div class="form-row">
+    <label>モデル優先度</label>
+    <select id="modelSelect">
+      <option value="auto">Auto (Gemini → Claude → OpenAI)</option>
+      <option value="gemini">Gemini 2.0 Flash</option>
+      <option value="claude">Claude Haiku</option>
+      <option value="openai">GPT-4o-mini</option>
+    </select>
+  </div>
+  <div class="form-row"><label>Gemini API キー (ml_gemini)</label><input type="text" id="geminiKey" placeholder="AIza..."></div>
+  <div class="form-row"><label>Claude API キー (ml_claude)</label><input type="text" id="claudeKey" placeholder="sk-ant-..."></div>
+  <div class="form-row"><label>OpenAI API キー (ml_openai)</label><input type="text" id="openaiKey" placeholder="sk-..."></div>
+  <div class="form-row"><label>Cloudflare Workers プロキシ URL</label><input type="text" id="proxyKey" placeholder="https://..."></div>
+  <button style="width:100%;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:700;margin-top:4px;" id="settingsSave">保存して閉じる</button>
+</div>
+
+<script>
+// ============================================================
+// System prompt — 感情・思考の会話設計
+// ============================================================
+const SYSTEM_PROMPT = `あなたは「kansei talk」の対話パートナーです。
+ユーザーが思考と感情を安全に探索できる場所を作ることが役割です。
+
+【基本姿勢】
+- まず聴く。反射する。急いで解決しない。
+- 感情を「危険なもの」ではなく「通過していく信号」として扱う
+  例: 「その重さは、今あなたが何かに気づいていることのサインかもしれません」
+- 身体・呼吸・今この瞬間への注意を自然に促す
+  例: 「今、身体のどこかにその感覚がありますか?」
+- 音楽・色・風景などの比喩で感情を別の形に変換する支援をする
+  例: 「もしこの気持ちが音なら、どんな音に聞こえますか?」
+- 現実から乖離しない自己暗示を提案する
+  例: 「今は少し楽になる方向に向かっている」のような、小さく正直な言葉
+
+【絶対にしないこと】
+- 「大丈夫です」「気にしなければいい」などの否定・上書き
+- 診断・処方・過剰なアドバイス
+- 急いで解決策を出す
+- 感情を「直すべき問題」として扱う
+
+【会話の流れ】
+1. まず相手の言葉をそのまま受け取り、短く反射する
+2. 一つだけ問いを返す(複数聞かない)
+3. ユーザーが自分で気づくのを待つ
+4. 必要なら、別の視点や比喩をそっと差し出す
+
+返答は短く(100〜200字程度)。押し付けない。余白を残す。
+日本語で話す。`;
+
+// ============================================================
+// State
+// ============================================================
+const API_KEY    = 'ml_claude';
+const GEMINI_KEY = 'ml_gemini';
+const OPENAI_KEY = 'ml_openai';
+const PROXY_KEY  = 'kansei_proxy_url';
+const MODEL_PREF = 'talk_model';
+const HIST_KEY   = 'kansei_talk_history';
+
+let history   = []; // {role, content}
+let isLoading = false;
+let micRec    = null;
+let micActive = false;
+
+// ============================================================
+// Load history
+// ============================================================
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(HIST_KEY);
+    if (raw) history = JSON.parse(raw);
+  } catch(_) { history = []; }
+}
+function saveHistory() {
+  // 最新50件のみ保持
+  const trimmed = history.slice(-50);
+  localStorage.setItem(HIST_KEY, JSON.stringify(trimmed));
+}
+
+// ============================================================
+// API (multi-model)
+// ============================================================
+async function callModel(messages) {
+  const pref   = localStorage.getItem(MODEL_PREF) || 'auto';
+  const order  = pref === 'auto'   ? ['gemini','claude','openai']
+               : pref === 'gemini' ? ['gemini','claude','openai']
+               : pref === 'claude' ? ['claude','gemini','openai']
+               :                     ['openai','claude','gemini'];
+
+  for (const model of order) {
+    try {
+      if (model === 'gemini') {
+        const key = localStorage.getItem(GEMINI_KEY);
+        if (!key) continue;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
+        const contents = messages.map(m => ({
+          role: m.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: m.content }]
+        }));
+        const res = await fetch(url, {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            contents,
+            systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] }
+          })
+        });
+        if (!res.ok) continue;
+        const d = await res.json();
+        return d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      }
+      if (model === 'claude') {
+        const key   = localStorage.getItem(API_KEY);
+        const proxy = localStorage.getItem(PROXY_KEY);
+        if (!key && !proxy) continue;
+        const endpoint = proxy || 'https://api.anthropic.com/v1/messages';
+        const headers = {'Content-Type':'application/json'};
+        if (!proxy) { headers['x-api-key'] = key; headers['anthropic-version'] = '2023-06-01'; }
+        const res = await fetch(endpoint, {
+          method: 'POST', headers,
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5', max_tokens: 512,
+            system: SYSTEM_PROMPT, messages
+          })
+        });
+        if (!res.ok) continue;
+        const d = await res.json();
+        return d.content?.[0]?.text || '';
+      }
+      if (model === 'openai') {
+        const key = localStorage.getItem(OPENAI_KEY);
+        if (!key) continue;
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json','Authorization':`Bearer ${key}`},
+          body: JSON.stringify({
+            model: 'gpt-4o-mini', max_tokens: 512,
+            messages: [{ role:'system', content: SYSTEM_PROMPT }, ...messages]
+          })
+        });
+        if (!res.ok) continue;
+        const d = await res.json();
+        return d.choices?.[0]?.message?.content || '';
+      }
+    } catch(_) { continue; }
+  }
+  throw new Error('APIキーが設定されていません。⋯ → ⚙️ から設定してください。');
+}
+
+// ============================================================
+// Messages rendering
+// ============================================================
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function timeLabel() {
+  return new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+}
+
+function appendMessage(role, content, showActions = true) {
+  const el  = document.createElement('div');
+  el.className = `msg ${role}`;
+
+  const actionsHtml = (role === 'ai' && showActions) ? `
+    <div class="msg-actions">
+      <button class="msg-action-btn" data-copy="${esc(content)}">コピー</button>
+      <button class="msg-action-btn btn-save-qr" data-text="${esc(content)}">quick-refに保存</button>
+    </div>` : '';
+
+  el.innerHTML = `
+    ${role === 'ai' ? `<div class="ai-avatar">✦</div>` : ''}
+    <div class="msg-bubble">${esc(content)}</div>
+    <div class="msg-time">${timeLabel()}</div>
+    ${actionsHtml}`;
+
+  document.getElementById('messages').appendChild(el);
+  el.scrollIntoView({ behavior: 'smooth', block: 'end' });
+
+  // Actions
+  el.querySelector('[data-copy]')?.addEventListener('click', async (e) => {
+    await navigator.clipboard.writeText(e.target.dataset.copy).catch(()=>{});
+    e.target.textContent = '✅';
+    setTimeout(() => e.target.textContent = 'コピー', 2000);
+  });
+  el.querySelector('.btn-save-qr')?.addEventListener('click', (e) => {
+    const text = e.target.dataset.text;
+    const key  = 'kansei_talk_qr_pending';
+    localStorage.setItem(key, JSON.stringify({ content: text, savedAt: Date.now() }));
+    e.target.textContent = '✅ 保存';
+    setTimeout(() => e.target.textContent = 'quick-refに保存', 2000);
+  });
+
+  return el;
+}
+
+function showTyping() {
+  const el = document.createElement('div');
+  el.className = 'msg ai';
+  el.id = 'typingIndicator';
+  el.innerHTML = `
+    <div class="ai-avatar">✦</div>
+    <div class="typing-bubble">
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+    </div>`;
+  document.getElementById('messages').appendChild(el);
+  el.scrollIntoView({ behavior:'smooth', block:'end' });
+}
+function hideTyping() {
+  document.getElementById('typingIndicator')?.remove();
+}
+
+// ============================================================
+// Send message
+// ============================================================
+async function sendMessage(text) {
+  if (!text.trim() || isLoading) return;
+  isLoading = true;
+
+  clearSuggestions();
+  appendMessage('user', text);
+  history.push({ role:'user', content: text });
+
+  document.getElementById('inputBox').textContent = '';
+  document.getElementById('sendBtn').disabled = true;
+  document.getElementById('headerStatus').textContent = '考えています…';
+
+  showTyping();
+
+  try {
+    const reply = await callModel(history.slice(-20));
+    hideTyping();
+    history.push({ role:'assistant', content: reply });
+    saveHistory();
+    appendMessage('ai', reply);
+    updateSuggestions(reply);
+  } catch(e) {
+    hideTyping();
+    appendMessage('ai', `⚠️ ${e.message}`, false);
+  } finally {
+    isLoading = false;
+    document.getElementById('sendBtn').disabled = false;
+    document.getElementById('headerStatus').textContent = '思考と感情の会話空間';
+  }
+}
+
+// ============================================================
+// Suggestions
+// ============================================================
+const SUGGEST_POOL = [
+  'もう少し詳しく話してもいいですか',
+  'その感覚、身体のどこにありますか?',
+  '今、少しだけ深呼吸してみます',
+  'これを色で表すとしたら何色?',
+  '似たような経験、前にもありましたか?',
+  '今この瞬間、何が一番気になっていますか?',
+  'その気持ちに名前をつけるとしたら?',
+  'もし音楽にするとしたら、どんな曲?',
+  '少し楽になっている部分はありますか?',
+];
+
+function updateSuggestions(lastReply) {
+  const pool = SUGGEST_POOL.filter((_, i) => i % 3 === history.length % 3);
+  showSuggestions(pool.slice(0, 3));
+}
+function showSuggestions(list) {
+  const el = document.getElementById('suggestions');
+  el.innerHTML = list.map(s =>
+    `<button class="suggestion-btn" data-text="${esc(s)}">${esc(s)}</button>`
+  ).join('');
+  el.querySelectorAll('.suggestion-btn').forEach(btn => {
+    btn.addEventListener('click', () => sendMessage(btn.dataset.text));
+  });
+}
+function clearSuggestions() {
+  document.getElementById('suggestions').innerHTML = '';
+}
+
+// ============================================================
+// Input box
+// ============================================================
+const inputBox = document.getElementById('inputBox');
+inputBox.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    const text = inputBox.textContent.trim();
+    sendMessage(text);
+  }
+});
+// Placeholder
+inputBox.addEventListener('input', () => {
+  inputBox.dataset.empty = inputBox.textContent.trim() === '' ? 'true' : '';
+});
+inputBox.dataset.empty = 'true';
+
+document.getElementById('sendBtn').addEventListener('click', () => {
+  sendMessage(inputBox.textContent.trim());
+});
+
+// Emotion chips
+document.querySelectorAll('.emotion-chip').forEach(chip => {
+  chip.addEventListener('click', () => sendMessage(chip.dataset.text));
+});
+
+// ============================================================
+// Voice input
+// ============================================================
+document.getElementById('micBtn').addEventListener('click', () => {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { alert('このブラウザは音声入力に対応していません。'); return; }
+  if (micActive) { micRec?.stop(); return; }
+
+  micRec = new SR();
+  micRec.lang = 'ja-JP';
+  micRec.continuous = false;
+  micRec.interimResults = false;
+
+  micRec.onstart = () => {
+    micActive = true;
+    document.getElementById('micBtn').classList.add('recording');
+    document.getElementById('micBtn').textContent = '⏹';
+  };
+  micRec.onresult = (e) => {
+    const text = e.results[0][0].transcript;
+    inputBox.textContent = text;
+    inputBox.dataset.empty = '';
+  };
+  micRec.onend = () => {
+    micActive = false;
+    document.getElementById('micBtn').classList.remove('recording');
+    document.getElementById('micBtn').textContent = '🎤';
+  };
+  micRec.onerror = () => {
+    micActive = false;
+    document.getElementById('micBtn').classList.remove('recording');
+    document.getElementById('micBtn').textContent = '🎤';
+  };
+  try { micRec.start(); } catch(_) {}
+});
+
+// ============================================================
+// Menu
+// ============================================================
+document.getElementById('menuBtn').addEventListener('click', () => {
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('menuSheet').classList.add('open');
+});
+function closeMenu() {
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('menuSheet').classList.remove('open');
+}
+document.getElementById('overlay').addEventListener('click', closeMenu);
+document.getElementById('menuClose').addEventListener('click', closeMenu);
+
+document.getElementById('exportDraftBtn').addEventListener('click', () => {
+  closeMenu();
+  const text = history.map(m =>
+    `${m.role === 'user' ? '自分' : 'AI'}: ${m.content}`
+  ).join('\n\n');
+  localStorage.setItem('kansei_materials', JSON.stringify({
+    source: 'kansei-talk', tag: '会話',
+    materials: [{ title: `会話記録 ${new Date().toLocaleDateString('ja-JP')}`, tags: ['会話'], body: text, fields: [] }],
+    exportedAt: Date.now()
+  }));
+  location.href = '/kansei/draft.html';
+});
+
+document.getElementById('exportMapBtn').addEventListener('click', () => {
+  closeMenu();
+  const text = history.map(m => m.content).join('\n');
+  localStorage.setItem('kansei_materials', JSON.stringify({
+    source: 'kansei-talk', tag: '思考整理',
+    materials: [{ title: '会話から思考整理', tags: ['会話','思考整理'], body: text, fields: [] }],
+    exportedAt: Date.now()
+  }));
+  location.href = '/kansei/draft.html#map';
+});
+
+document.getElementById('saveQuickRefBtn').addEventListener('click', () => {
+  closeMenu();
+  const text = history.slice(-6).map(m =>
+    `${m.role === 'user' ? 'Q' : 'A'}: ${m.content}`
+  ).join('\n');
+  localStorage.setItem('kansei_talk_qr_pending', JSON.stringify({
+    title: `会話メモ ${new Date().toLocaleDateString('ja-JP')}`,
+    body: text,
+    tags: ['会話', 'メモ'],
+    savedAt: Date.now()
+  }));
+  alert('quick-refに保存用データを書き込みました。\nquick-refを開いて受け取ってください。');
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  if (!confirm('会話をリセットしますか?')) return;
+  history = [];
+  localStorage.removeItem(HIST_KEY);
+  document.getElementById('messages').innerHTML = '';
+  clearSuggestions();
+  showWelcome();
+});
+
+// ============================================================
+// Settings
+// ============================================================
+document.getElementById('settingsMenuBtn').addEventListener('click', () => {
+  closeMenu();
+  document.getElementById('geminiKey').value = localStorage.getItem(GEMINI_KEY) || '';
+  document.getElementById('claudeKey').value  = localStorage.getItem(API_KEY)    || '';
+  document.getElementById('openaiKey').value  = localStorage.getItem(OPENAI_KEY) || '';
+  document.getElementById('proxyKey').value   = localStorage.getItem(PROXY_KEY)  || '';
+  document.getElementById('modelSelect').value = localStorage.getItem(MODEL_PREF) || 'auto';
+  document.getElementById('settingsOverlay').classList.add('open');
+  document.getElementById('settingsSheet').classList.add('open');
+});
+document.getElementById('settingsOverlay').addEventListener('click', () => {
+  document.getElementById('settingsOverlay').classList.remove('open');
+  document.getElementById('settingsSheet').classList.remove('open');
+});
+document.getElementById('settingsSave').addEventListener('click', () => {
+  const g = document.getElementById('geminiKey').value.trim();
+  const c = document.getElementById('claudeKey').value.trim();
+  const o = document.getElementById('openaiKey').value.trim();
+  const p = document.getElementById('proxyKey').value.trim();
+  if (g) localStorage.setItem(GEMINI_KEY, g);
+  if (c) localStorage.setItem(API_KEY, c);
+  if (o) localStorage.setItem(OPENAI_KEY, o);
+  if (p) localStorage.setItem(PROXY_KEY, p); else localStorage.removeItem(PROXY_KEY);
+  localStorage.setItem(MODEL_PREF, document.getElementById('modelSelect').value);
+  document.getElementById('settingsOverlay').classList.remove('open');
+  document.getElementById('settingsSheet').classList.remove('open');
+});
+
+// ============================================================
+// Welcome
+// ============================================================
+function showWelcome() {
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'おはようございます' : hour < 17 ? 'こんにちは' : 'こんばんは';
+  const openings = [
+    '今日、気になっていることはありますか?',
+    'ふと浮かんでいることがあれば、話してみてください。',
+    '頭の中にあることを、そのまま言葉にしてみてください。',
+    '今この瞬間、どんな状態ですか?',
+  ];
+  const opening = openings[Math.floor(Math.random() * openings.length)];
+  appendMessage('ai', `${greeting}。\n\n${opening}`, false);
+  showSuggestions([
+    'なんとなく落ち着かない',
+    'アイデアを整理したい',
+    '決めないといけないことがある',
+  ]);
+}
+
+// ============================================================
+// Init
+// ============================================================
+loadHistory();
+
+if (history.length === 0) {
+  showWelcome();
+} else {
+  // 過去の会話を復元
+  history.forEach(m => appendMessage(m.role === 'user' ? 'user' : 'ai', m.content, false));
+  updateSuggestions('');
+}
+</script>
+<style>
+  .input-box:empty::before {
+    content: attr(data-placeholder);
+    color: var(--sub); pointer-events: none;
+  }
+</style>
+</body>
+</html>
+talk.html
+talk.html を表示しています。

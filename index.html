@@ -1,0 +1,400 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1C1C2E">
+<title>kansei — アーカイブ</title>
+<style>
+  :root {
+    --bg: #1C1C2E; --card: #2C2C3E; --card2: #3A3A4E;
+    --accent: #FF9500; --blue: #007AFF; --green: #34C759;
+    --text: #F2F2F7; --sub: #8E8E9E; --border: #3A3A4E;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+    -webkit-font-smoothing: antialiased; }
+  body { padding-bottom: calc(env(safe-area-inset-bottom) + 80px); }
+
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(28,28,46,0.94); backdrop-filter: blur(12px);
+    padding: calc(env(safe-area-inset-top) + 12px) 16px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header-top { display: flex; align-items: baseline; justify-content: space-between; }
+  header h1 { font-size: 22px; font-weight: 800; margin: 0; }
+  header h1 span { color: var(--accent); }
+  .header-sub { font-size: 12px; color: var(--sub); margin-top: 2px; }
+
+  main { padding: 14px 16px; max-width: 640px; margin: 0 auto; }
+
+  /* ---- Stats row ---- */
+  .stats-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .stat-card {
+    flex: 1; background: var(--card); border-radius: 12px;
+    padding: 12px 10px; text-align: center; border: 1px solid var(--border);
+  }
+  .stat-num { font-size: 22px; font-weight: 800; color: var(--accent); }
+  .stat-label { font-size: 11px; color: var(--sub); margin-top: 2px; }
+
+  /* ---- New article button ---- */
+  .new-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; background: var(--accent); color: #fff;
+    border: none; border-radius: var(--radius);
+    padding: 14px; font-size: 16px; font-weight: 700;
+    margin-bottom: 20px; box-shadow: 0 4px 14px rgba(255,149,0,0.3);
+  }
+  .new-btn:active { transform: scale(0.98); }
+
+  /* ---- Section label ---- */
+  .section-label {
+    font-size: 11px; font-weight: 700; color: var(--sub);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin: 20px 0 10px;
+  }
+
+  /* ---- Article card ---- */
+  .article-card {
+    background: var(--card); border-radius: var(--radius);
+    border: 1px solid var(--border);
+    margin-bottom: 10px; overflow: hidden;
+  }
+  .article-card-body { padding: 14px 16px; cursor: pointer; }
+  .article-card:active .article-card-body { background: var(--card2); }
+  .article-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .article-mode { font-size: 11px; background: rgba(255,149,0,0.15); color: var(--accent); padding: 2px 8px; border-radius: 100px; font-weight: 700; }
+  .article-lang { font-size: 11px; color: var(--sub); }
+  .article-date { font-size: 11px; color: var(--sub); margin-left: auto; }
+  .article-title { font-size: 16px; font-weight: 700; margin: 0 0 5px; }
+  .article-snippet { font-size: 13px; color: var(--sub); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin: 0; }
+
+  .article-footer {
+    display: flex; border-top: 1px solid var(--border);
+  }
+  .article-btn {
+    flex: 1; background: none; border: none;
+    padding: 10px 6px; font-size: 13px; font-weight: 600;
+    color: var(--sub); text-align: center;
+  }
+  .article-btn + .article-btn { border-left: 1px solid var(--border); }
+  .article-btn.primary { color: var(--accent); }
+  .article-btn.danger  { color: #FF453A; }
+
+  /* ---- Add article modal ---- */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 30; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .overlay.open { opacity: 1; pointer-events: auto; }
+  .bottom-sheet {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: #2C2C3E; border-radius: 20px 20px 0 0; z-index: 31;
+    padding: 6px 16px calc(env(safe-area-inset-bottom) + 24px);
+    transform: translateY(100%); transition: transform 0.25s ease-out;
+    box-shadow: 0 -2px 20px rgba(0,0,0,0.4);
+  }
+  .bottom-sheet.open { transform: translateY(0); }
+  .sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 10px auto 16px; }
+  .form-row { margin-bottom: 12px; }
+  .form-row label { display: block; font-size: 12px; color: var(--sub); font-weight: 600; margin-bottom: 4px; }
+  input[type="text"], input[type="date"], select, textarea {
+    width: 100%; font-size: 16px; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--bg); color: var(--text); font-family: inherit;
+    -webkit-appearance: none;
+  }
+  textarea { min-height: 64px; resize: vertical; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); }
+  .chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .mode-chip { font-size: 13px; padding: 6px 14px; border-radius: 100px; border: 1px solid var(--border); background: var(--card2); color: var(--text); cursor: pointer; }
+  .mode-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .save-btn { width: 100%; background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 13px; font-size: 16px; font-weight: 700; margin-top: 4px; }
+  .close-btn { width: 100%; background: none; border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 15px; color: var(--sub); margin-top: 8px; }
+
+  /* ---- Empty ---- */
+  .empty { text-align: center; padding: 50px 20px; color: var(--sub); line-height: 1.8; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <h1>kan<span>sei</span></h1>
+    <span style="font-size:12px;color:var(--sub);" id="totalCount">0作品</span>
+  </div>
+  <div class="header-sub">旅 → 記録 → 作品 → 資産</div>
+</header>
+
+<main>
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-num" id="statDraft">0</div><div class="stat-label">草稿</div></div>
+    <div class="stat-card"><div class="stat-num" id="statPublished">0</div><div class="stat-label">公開済み</div></div>
+    <div class="stat-card"><div class="stat-num" id="statLang">0</div><div class="stat-label">英語版あり</div></div>
+  </div>
+
+  <!-- New article -->
+  <button class="new-btn" id="newArticleBtn">✍️ 新しい原稿を作る</button>
+
+  <!-- Draft list -->
+  <div class="section-label">📝 草稿</div>
+  <div id="draftList"><div class="empty">まだ草稿がありません<br>「新しい原稿を作る」から始めてください</div></div>
+
+  <!-- Published list -->
+  <div class="section-label" id="publishedSection" style="display:none;">✅ 公開済み</div>
+  <div id="publishedList"></div>
+</main>
+
+<!-- Add/Edit sheet -->
+<div class="overlay" id="overlay"></div>
+<div class="bottom-sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="form-row">
+    <label>タイトル</label>
+    <input type="text" id="fTitle" placeholder="例: 茨城・夏の海辺ひとり旅">
+  </div>
+  <div class="form-row">
+    <label>旅行日</label>
+    <input type="date" id="fDate">
+  </div>
+  <div class="form-row">
+    <label>モード</label>
+    <div class="chip-row" id="modeChips">
+      <div class="mode-chip active" data-v="旅行記">✈️ 旅行記</div>
+      <div class="mode-chip" data-v="説明書">📖 説明書</div>
+      <div class="mode-chip" data-v="アイデア">💡 アイデア</div>
+      <div class="mode-chip" data-v="SNS">📣 SNS</div>
+      <div class="mode-chip" data-v="汎用">🔮 汎用</div>
+    </div>
+  </div>
+  <div class="form-row">
+    <label>note.com URL (公開済みの場合)</label>
+    <input type="text" id="fNoteUrl" placeholder="https://note.com/...">
+  </div>
+  <div class="form-row">
+    <label>メモ(任意)</label>
+    <textarea id="fMemo" placeholder="テーマ・場所・気づきなど"></textarea>
+  </div>
+  <button class="save-btn" id="saveArticleBtn">保存</button>
+  <button class="close-btn" id="closeSheetBtn">キャンセル</button>
+</div>
+
+<script>
+const ARCHIVE_KEY = 'kansei_archive';
+let articles = [];
+let editingId = null;
+let selectedMode = '旅行記';
+
+// ---- Storage ----
+function loadArticles() {
+  try { articles = JSON.parse(localStorage.getItem(ARCHIVE_KEY) || '[]'); }
+  catch(_) { articles = []; }
+}
+function saveArticles() {
+  localStorage.setItem(ARCHIVE_KEY, JSON.stringify(articles));
+}
+
+// ---- Render ----
+function render() {
+  loadArticles();
+  const drafts    = articles.filter(a => !a.noteUrl);
+  const published = articles.filter(a =>  a.noteUrl);
+
+  document.getElementById('statDraft').textContent     = drafts.length;
+  document.getElementById('statPublished').textContent = published.length;
+  document.getElementById('statLang').textContent      = articles.filter(a => a.hasEn).length;
+  document.getElementById('totalCount').textContent    = `${articles.length}作品`;
+
+  document.getElementById('draftList').innerHTML =
+    drafts.length ? drafts.map(cardHTML).join('') :
+    '<div class="empty">草稿なし</div>';
+
+  const pubSec = document.getElementById('publishedSection');
+  const pubList = document.getElementById('publishedList');
+  if (published.length) {
+    pubSec.style.display = 'block';
+    pubList.innerHTML = published.map(cardHTML).join('');
+  } else {
+    pubSec.style.display = 'none';
+    pubList.innerHTML = '';
+  }
+
+  // Events
+  document.querySelectorAll('.article-card').forEach(card => {
+    const id = card.dataset.id;
+    card.querySelector('.btn-draft')?.addEventListener('click', () => openDraft(id));
+    card.querySelector('.btn-note')?.addEventListener('click', () => {
+      const a = articles.find(x => x.id === id);
+      if (a?.noteUrl) window.open(a.noteUrl, '_blank');
+    });
+    card.querySelector('.btn-learn')?.addEventListener('click', () => openLearn(id));
+    card.querySelector('.btn-edit')?.addEventListener('click', () => openEdit(id));
+    card.querySelector('.btn-delete')?.addEventListener('click', () => deleteArticle(id));
+  });
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function cardHTML(a) {
+  const date = a.date ? new Date(a.date).toLocaleDateString('ja-JP',{month:'short',day:'numeric'}) : '';
+  const langLabel = a.hasEn ? '🌐 日英' : '🇯🇵 日本語';
+  const noteBtn = a.noteUrl
+    ? `<button class="article-btn primary btn-note">📝 note</button>`
+    : `<button class="article-btn primary btn-draft">✍️ 続きを書く</button>`;
+  return `
+    <div class="article-card" data-id="${a.id}">
+      <div class="article-card-body">
+        <div class="article-meta">
+          <span class="article-mode">${esc(a.mode||'旅行記')}</span>
+          <span class="article-lang">${langLabel}</span>
+          <span class="article-date">${date}</span>
+        </div>
+        <p class="article-title">${esc(a.title||'(無題)')}</p>
+        ${a.memo ? `<p class="article-snippet">${esc(a.memo)}</p>` : ''}
+      </div>
+      <div class="article-footer">
+        ${noteBtn}
+        <button class="article-btn btn-learn">🎓 学習</button>
+        <button class="article-btn btn-edit">✏️</button>
+        <button class="article-btn danger btn-delete">🗑</button>
+      </div>
+    </div>`;
+}
+
+// ---- Actions ----
+function openDraft(id) {
+  const a = articles.find(x => x.id === id);
+  if (!a) return;
+  // kansei_materials に送ってdraft.htmlへ
+  localStorage.setItem('kansei_draft_article_id', id);
+  location.href = '/kansei/draft.html';
+}
+
+function openLearn(id) {
+  const a = articles.find(x => x.id === id);
+  if (!a || !a.draftEn) { alert('英語原稿がありません。\ndraft.html で英語版を生成してください。'); return; }
+  localStorage.setItem('kansei_learn', JSON.stringify({
+    source: 'kansei-archive', title: a.title, lang: 'en', content: a.draftEn, createdAt: Date.now()
+  }));
+  location.href = '/kansei/learn.html';
+}
+
+function deleteArticle(id) {
+  if (!confirm('この記録を削除しますか?')) return;
+  articles = articles.filter(x => x.id !== id);
+  saveArticles();
+  render();
+}
+
+function openEdit(id) {
+  const a = articles.find(x => x.id === id);
+  if (!a) return;
+  editingId = id;
+  document.getElementById('fTitle').value   = a.title  || '';
+  document.getElementById('fDate').value    = a.date   || '';
+  document.getElementById('fNoteUrl').value = a.noteUrl || '';
+  document.getElementById('fMemo').value    = a.memo   || '';
+  selectedMode = a.mode || '旅行記';
+  document.querySelectorAll('.mode-chip').forEach(c => c.classList.toggle('active', c.dataset.v === selectedMode));
+  openSheet();
+}
+
+// ---- Sheet ----
+function openSheet() {
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('sheet').classList.add('open');
+}
+function closeSheet() {
+  editingId = null;
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('sheet').classList.remove('open');
+  document.getElementById('fTitle').value = '';
+  document.getElementById('fDate').value  = '';
+  document.getElementById('fNoteUrl').value = '';
+  document.getElementById('fMemo').value  = '';
+}
+
+document.getElementById('newArticleBtn').addEventListener('click', () => {
+  editingId = null;
+  document.getElementById('fDate').value = new Date().toISOString().slice(0,10);
+  openSheet();
+});
+document.getElementById('overlay').addEventListener('click', closeSheet);
+document.getElementById('closeSheetBtn').addEventListener('click', closeSheet);
+
+document.querySelectorAll('.mode-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.mode-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    selectedMode = chip.dataset.v;
+  });
+});
+
+document.getElementById('saveArticleBtn').addEventListener('click', () => {
+  const title = document.getElementById('fTitle').value.trim();
+  if (!title) { document.getElementById('fTitle').focus(); return; }
+
+  const article = {
+    id:      editingId || crypto.randomUUID(),
+    title,
+    date:    document.getElementById('fDate').value,
+    mode:    selectedMode,
+    noteUrl: document.getElementById('fNoteUrl').value.trim(),
+    memo:    document.getElementById('fMemo').value.trim(),
+    hasEn:   false, draftEn: '',
+    createdAt: editingId ? (articles.find(x=>x.id===editingId)?.createdAt || Date.now()) : Date.now(),
+    updatedAt: Date.now()
+  };
+
+  if (editingId) {
+    const idx = articles.findIndex(x => x.id === editingId);
+    if (idx >= 0) {
+      article.hasEn   = articles[idx].hasEn;
+      article.draftEn = articles[idx].draftEn;
+      articles[idx] = article;
+    }
+  } else {
+    articles.unshift(article);
+  }
+
+  saveArticles();
+  closeSheet();
+  render();
+
+  // 新規の場合はすぐdraft.htmlへ
+  if (!editingId) {
+    localStorage.setItem('kansei_draft_article_id', article.id);
+    if (confirm('draft.htmlで原稿作成を始めますか?')) location.href = '/kansei/draft.html';
+  }
+});
+
+// draft.htmlから戻ってきたとき英語原稿を受け取る
+function checkIncomingDraft() {
+  const incoming = localStorage.getItem('kansei_draft_result');
+  if (!incoming) return;
+  try {
+    const { articleId, draftEn, draftJa } = JSON.parse(incoming);
+    const idx = articles.findIndex(x => x.id === articleId);
+    if (idx >= 0) {
+      if (draftEn) { articles[idx].draftEn = draftEn; articles[idx].hasEn = true; }
+      if (draftJa) articles[idx].draftJa = draftJa;
+      saveArticles();
+    }
+  } catch(_) {}
+  localStorage.removeItem('kansei_draft_result');
+}
+
+// ---- Init ----
+checkIncomingDraft();
+render();
+</script>
+</body>
+</html>
+kansei-index.html
+kansei-index.html を表示しています。

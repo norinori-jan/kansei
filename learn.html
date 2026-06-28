@@ -1,0 +1,1062 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#1C1C2E">
+<title>Scene Learning — kansei</title>
+<style>
+  :root {
+    --bg: #1C1C2E; --card: #2C2C3E; --card2: #3A3A4E;
+    --accent: #FF9500; --blue: #007AFF; --green: #34C759;
+    --purple: #AF52DE; --red: #FF453A;
+    --text: #F2F2F7; --sub: #8E8E9E; --border: #3A3A4E;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+    -webkit-font-smoothing: antialiased; height: 100%; }
+  body { padding-bottom: calc(env(safe-area-inset-bottom) + 100px); }
+
+  /* ---- Header ---- */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(28,28,46,0.92); backdrop-filter: blur(12px);
+    padding: calc(env(safe-area-inset-top) + 10px) 16px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header-top { display: flex; align-items: center; gap: 10px; }
+  .back-btn { background: none; border: none; color: var(--accent); font-size: 15px; padding: 4px 0; white-space: nowrap; }
+  .header-title { flex: 1; font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .settings-btn { background: none; border: none; font-size: 20px; padding: 4px; }
+
+  /* ---- Progress bar ---- */
+  .progress-bar-wrap { margin-top: 10px; }
+  .progress-bar-track { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--sub); margin-top: 4px; }
+
+  /* ---- Main ---- */
+  main { padding: 14px 16px 0; max-width: 640px; margin: 0 auto; }
+
+  /* ---- Scene card ---- */
+  .scene-card {
+    background: var(--card); border-radius: var(--radius);
+    padding: 18px 16px; margin-bottom: 12px;
+    border: 1px solid var(--border);
+    position: relative;
+  }
+  .scene-card.learned { border-color: var(--green); }
+  .scene-badge {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .scene-num { font-size: 12px; color: var(--sub); font-weight: 600; }
+  .learned-badge {
+    font-size: 11px; font-weight: 700; color: var(--green);
+    background: rgba(52,199,89,0.12); border-radius: 100px; padding: 3px 10px;
+    display: none;
+  }
+  .scene-card.learned .learned-badge { display: block; }
+
+  .scene-heading { font-size: 15px; font-weight: 700; color: var(--accent); margin: 0 0 10px; }
+  .scene-text {
+    font-size: 16px; line-height: 1.85; color: var(--text);
+    margin: 0; white-space: pre-wrap; word-break: break-word;
+    letter-spacing: 0.01em;
+  }
+  .scene-text.playing { color: #fff; }
+
+  /* ---- TTS controls ---- */
+  .tts-row { display: flex; align-items: center; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .tts-btn {
+    display: flex; align-items: center; gap: 5px;
+    background: var(--blue); color: #fff;
+    border: none; border-radius: 10px; padding: 9px 16px;
+    font-size: 14px; font-weight: 600;
+  }
+  .tts-btn:active { opacity: 0.8; }
+  .tts-btn.playing { background: var(--red); }
+  .speed-wrap { display: flex; align-items: center; gap: 6px; }
+  .speed-label { font-size: 12px; color: var(--sub); }
+  .speed-btn {
+    background: var(--card2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; padding: 6px 10px; font-size: 12px;
+    font-weight: 600;
+  }
+  .speed-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* ---- Reveal sections ---- */
+  .reveal-section { margin-top: 12px; }
+  .reveal-btn {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    background: var(--card2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px;
+    font-size: 14px; font-weight: 600; color: var(--text);
+    text-align: left;
+  }
+  .reveal-btn .arrow { transition: transform 0.2s; color: var(--sub); font-size: 12px; }
+  .reveal-btn.open .arrow { transform: rotate(180deg); }
+  .reveal-content {
+    background: rgba(255,255,255,0.04); border-radius: 0 0 10px 10px;
+    padding: 12px 14px; border: 1px solid var(--border); border-top: none;
+    display: none; font-size: 14px; line-height: 1.75; color: #D0D0E0;
+  }
+  .reveal-content.visible { display: block; }
+  .loading-dot { display: inline-block; animation: blink 1s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ---- Key phrases ---- */
+  .phrase-item { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  .phrase-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+  .phrase-en { font-size: 15px; font-weight: 700; color: var(--accent); margin: 0 0 2px; }
+  .phrase-ja { font-size: 13px; color: var(--sub); margin: 0; }
+  .phrase-example { font-size: 13px; color: #A0A0B0; margin: 3px 0 0; font-style: italic; }
+
+  /* ---- Shadowing ---- */
+  .shadow-section { margin-top: 12px; }
+  .shadow-card {
+    background: var(--card2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px;
+  }
+  .shadow-title { font-size: 13px; font-weight: 700; color: var(--purple); margin: 0 0 10px; }
+  .shadow-steps { display: flex; gap: 8px; }
+  .shadow-step {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: var(--bg); border-radius: 10px; padding: 10px 6px;
+    border: 1px solid var(--border); font-size: 12px; color: var(--sub); text-align: center;
+  }
+  .shadow-step-icon { font-size: 20px; }
+  .shadow-step.active { border-color: var(--purple); color: var(--purple); }
+  .shadow-step.done { border-color: var(--green); color: var(--green); }
+  .shadow-rec-btn {
+    width: 100%; margin-top: 10px;
+    background: var(--purple); color: #fff; border: none;
+    border-radius: 10px; padding: 11px; font-size: 14px; font-weight: 700;
+  }
+  .shadow-rec-btn.recording { background: var(--red); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(255,69,58,0.4)} 50%{box-shadow:0 0 0 8px rgba(255,69,58,0)} }
+  .shadow-playback { margin-top: 8px; }
+  .shadow-playback audio { width: 100%; height: 36px; }
+
+  /* ---- Model badge ---- */
+  .model-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 700; border-radius: 100px;
+    padding: 3px 9px; margin-left: 4px;
+  }
+  .model-badge.claude  { background: rgba(255,149,0,0.15); color: var(--accent); }
+  .model-badge.openai  { background: rgba(52,199,89,0.15); color: var(--green); }
+  .model-badge.gemini  { background: rgba(0,122,255,0.15); color: var(--blue); }
+
+  /* ---- Conversation ---- */
+  .conv-line { display: flex; gap: 10px; margin-bottom: 12px; align-items: flex-start; }
+  .conv-line.b { flex-direction: row-reverse; }
+  .conv-avatar {
+    width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 15px;
+  }
+  .conv-line.a .conv-avatar { background: rgba(0,122,255,0.2); }
+  .conv-line.b .conv-avatar { background: rgba(255,149,0,0.2); }
+  .conv-bubble { background: var(--card2); border-radius: 12px; padding: 9px 12px; max-width: calc(100% - 48px); }
+  .conv-line.a .conv-bubble { border-radius: 4px 12px 12px 12px; }
+  .conv-line.b .conv-bubble { border-radius: 12px 4px 12px 12px; }
+  .conv-speaker { font-size: 11px; color: var(--sub); margin: 0 0 2px; font-weight: 600; }
+  .conv-text { font-size: 15px; margin: 0; color: var(--text); line-height: 1.6; }
+  .conv-text.playing { color: var(--accent); }
+  .conv-line-btns { display: flex; gap: 5px; margin-top: 5px; flex-wrap: wrap; }
+  .conv-play-btn { background: none; border: 1px solid var(--border); border-radius: 7px; padding: 3px 9px; font-size: 11px; color: var(--sub); }
+  .conv-play-btn.playing { border-color: var(--accent); color: var(--accent); }
+  .conv-rec-btn { background: none; border: 1px solid var(--border); border-radius: 7px; padding: 3px 9px; font-size: 11px; color: var(--purple); border-color: var(--purple); }
+  .conv-rec-btn.recording { background: var(--red); color: #fff; border-color: var(--red); }
+
+  .conv-all-bar {
+    display: flex; align-items: center; gap: 8px; margin-top: 10px;
+    background: var(--card2); border-radius: 10px; padding: 10px 12px;
+  }
+  .conv-all-play {
+    background: var(--blue); color: #fff; border: none;
+    border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 700;
+  }
+  .conv-all-play.stop { background: var(--red); }
+  .conv-all-status { flex: 1; font-size: 12px; color: var(--sub); }
+
+  /* ---- Bottom nav ---- */
+  .bottom-nav {
+    position: fixed; left: 0; right: 0;
+    bottom: 0; z-index: 20;
+    background: rgba(28,28,46,0.96); backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    padding: 10px 16px calc(env(safe-area-inset-bottom) + 10px);
+    display: flex; gap: 8px; max-width: 640px; margin: 0 auto;
+  }
+  .nav-btn {
+    flex: 1; padding: 12px 8px; border-radius: 12px; border: none;
+    font-size: 14px; font-weight: 700; display: flex; flex-direction: column;
+    align-items: center; gap: 2px;
+  }
+  .nav-btn .nav-icon { font-size: 18px; }
+  .nav-btn .nav-label { font-size: 11px; }
+  .nav-btn.prev { background: var(--card2); color: var(--sub); }
+  .nav-btn.learned-btn { background: rgba(52,199,89,0.15); color: var(--green); border: 1px solid rgba(52,199,89,0.3); }
+  .nav-btn.learned-btn.done { background: var(--green); color: #fff; }
+  .nav-btn.next { background: var(--accent); color: #fff; }
+  .nav-btn:disabled { opacity: 0.35; }
+
+  /* ---- Settings sheet ---- */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 30; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .overlay.open { opacity: 1; pointer-events: auto; }
+  .bottom-sheet {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: #2C2C3E; border-radius: 20px 20px 0 0;
+    z-index: 31; padding: 6px 16px calc(env(safe-area-inset-bottom) + 24px);
+    transform: translateY(100%); transition: transform 0.25s ease-out;
+    box-shadow: 0 -2px 20px rgba(0,0,0,0.4);
+  }
+  .bottom-sheet.open { transform: translateY(0); }
+  .sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 10px auto 16px; }
+  .sheet-title { font-size: 15px; font-weight: 700; margin: 0 0 16px; }
+  .form-row { margin-bottom: 12px; }
+  .form-row label { display: block; font-size: 12px; color: var(--sub); font-weight: 600; margin-bottom: 4px; }
+  select, input[type="range"] { width: 100%; font-size: 15px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); -webkit-appearance: none; font-family: inherit; }
+  .sheet-close { width: 100%; margin-top: 8px; background: none; border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 15px; color: var(--sub); }
+
+  /* ---- Empty state ---- */
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--sub); font-size: 15px; line-height: 1.8; }
+  .empty-state a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <button class="back-btn" onclick="location.href='/kansei/draft.html'">← 原稿</button>
+    <div class="header-title" id="headerTitle">Scene Learning</div>
+    <button class="settings-btn" id="settingsBtn">⚙️</button>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+    </div>
+    <div class="progress-label">
+      <span id="progressText">0 / 0 完了</span>
+      <span id="sceneCounter">Scene 1</span>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <div class="empty-state" id="emptyState" style="display:none;">
+    学習する英語テキストがありません。<br><br>
+    <a href="/kansei/draft.html">← draft.html で英語を生成してから<br>「🎓 学習」ボタンを押してください</a>
+  </div>
+</main>
+
+<div class="bottom-nav" id="bottomNav" style="display:none;">
+  <button class="nav-btn prev" id="prevBtn">
+    <span class="nav-icon">←</span>
+    <span class="nav-label">前へ</span>
+  </button>
+  <button class="nav-btn learned-btn" id="learnedBtn">
+    <span class="nav-icon">✅</span>
+    <span class="nav-label">完了</span>
+  </button>
+  <button class="nav-btn next" id="nextBtn">
+    <span class="nav-icon">→</span>
+    <span class="nav-label">次へ</span>
+  </button>
+</div>
+
+<!-- Settings -->
+<div class="overlay" id="overlay"></div>
+<div class="bottom-sheet" id="settingsSheet">
+  <div class="sheet-handle"></div>
+  <p class="sheet-title">⚙️ 学習設定</p>
+  <div class="form-row">
+    <label>読み上げ速度</label>
+    <select id="rateSelect">
+      <option value="0.7">遅め (0.7×)</option>
+      <option value="0.85" selected>やや遅め (0.85×)</option>
+      <option value="1.0">標準 (1.0×)</option>
+      <option value="1.2">速め (1.2×)</option>
+    </select>
+  </div>
+  <div class="form-row">
+    <label>英語音声</label>
+    <select id="voiceSelect"><option value="">デフォルト</option></select>
+  </div>
+  <div class="form-row">
+    <label>AIモデル</label>
+    <select id="modelSelect">
+      <option value="auto">Auto (Gemini → Claude → OpenAI)</option>
+      <option value="gemini">Gemini 2.0 Flash</option>
+      <option value="claude">Claude Haiku</option>
+      <option value="openai">OpenAI GPT-4o-mini</option>
+    </select>
+  </div>
+  <div class="form-row">
+    <label>Gemini API キー</label>
+    <input type="text" id="geminiKeyInput" placeholder="AIza...">
+    <p style="font-size:11px;color:var(--sub);margin:3px 0 0;">localStorage['ml_gemini'] に保存</p>
+  </div>
+  <div class="form-row">
+    <label>Claude API キー</label>
+    <input type="text" id="apiKeyInput" placeholder="sk-ant-...">
+    <p style="font-size:11px;color:var(--sub);margin:3px 0 0;">localStorage['ml_claude'] に保存</p>
+  </div>
+  <div class="form-row">
+    <label>OpenAI API キー</label>
+    <input type="text" id="openaiKeyInput" placeholder="sk-...">
+    <p style="font-size:11px;color:var(--sub);margin:3px 0 0;">localStorage['ml_openai'] に保存</p>
+  </div>
+  <div class="form-row">
+    <label>Cloudflare Workers プロキシ URL(任意)</label>
+    <input type="text" id="proxyInput" placeholder="https://your-worker.workers.dev">
+    <p style="font-size:11px;color:var(--sub);margin:3px 0 0;">設定するとAPIキーを直接使わずに済みます</p>
+  </div>
+  <button class="sheet-close" id="settingsClose">保存して閉じる</button>
+</div>
+
+<script>
+// ============================================================
+// Constants
+// ============================================================
+const LEARN_KEY  = 'kansei_learn';
+const API_KEY    = 'ml_claude';
+const GEMINI_KEY = 'ml_gemini';
+const OPENAI_KEY = 'ml_openai';
+const PROXY_KEY  = 'kansei_proxy_url';
+const MODEL_PREF = 'kansei_model';  // draft.htmlと共通キー
+const PROG_KEY   = 'kansei_learn_progress';
+const CACHE_KEY  = 'kansei_learn_cache';
+
+// ============================================================
+// State
+// ============================================================
+let scenes        = [];
+let currentIndex  = 0;
+let learnedSet    = new Set();
+let translCache   = {};
+let phrasesCache  = {};
+let convCache     = {};   // scene index → [{speaker,name,line}]
+let lastUsedModel = 'claude';
+let ttsUtterance  = null;
+let isTTSPlaying  = false;
+let shadowRec     = null;
+let shadowChunks  = [];
+let shadowAudioURL = null;
+let convPlaying   = false;
+
+// ============================================================
+// Multi-model API layer
+// ============================================================
+async function callGemini(prompt) {
+  const key = localStorage.getItem(GEMINI_KEY);
+  if (!key) throw new Error('no-key');
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+  });
+  if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+async function callClaude(prompt) {
+  const key      = localStorage.getItem(API_KEY);
+  const proxyUrl = localStorage.getItem(PROXY_KEY);
+  const endpoint = proxyUrl || 'https://api.anthropic.com/v1/messages';
+  if (!proxyUrl && !key) throw new Error('no-key');
+  const headers = { 'Content-Type': 'application/json' };
+  if (!proxyUrl) { headers['x-api-key'] = key; headers['anthropic-version'] = '2023-06-01'; }
+  const res = await fetch(endpoint, {
+    method: 'POST', headers,
+    body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 1024, messages:[{ role:'user', content: prompt }] })
+  });
+  if (!res.ok) throw new Error(`Claude HTTP ${res.status}`);
+  const data = await res.json();
+  return data.content?.[0]?.text || '';
+}
+
+async function callOpenAI(prompt) {
+  const key = localStorage.getItem(OPENAI_KEY);
+  if (!key) throw new Error('no-key');
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+    body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 1024, messages:[{ role:'user', content: prompt }] })
+  });
+  if (!res.ok) throw new Error(`OpenAI HTTP ${res.status}`);
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || '';
+}
+
+async function callModel(prompt) {
+  const pref = localStorage.getItem(MODEL_PREF) || 'auto';
+  const order = pref === 'auto'   ? ['gemini','claude','openai']
+               : pref === 'gemini' ? ['gemini','claude','openai']
+               : pref === 'claude' ? ['claude','gemini','openai']
+               :                     ['openai','claude','gemini'];
+  let lastErr = null;
+  for (const model of order) {
+    try {
+      let result;
+      if      (model === 'gemini') result = await callGemini(prompt);
+      else if (model === 'claude') result = await callClaude(prompt);
+      else                         result = await callOpenAI(prompt);
+      lastUsedModel = model;
+      return result;
+    } catch(e) {
+      if (e.message === 'no-key') continue;
+      lastErr = e; continue;
+    }
+  }
+  throw lastErr || new Error('APIキーが設定されていません。⚙️ から設定してください。');
+}
+
+function modelBadgeHTML() {
+  const m = lastUsedModel;
+  const label = m === 'gemini' ? 'Gemini' : m === 'claude' ? 'Claude' : 'GPT-4o';
+  return `<span class="model-badge ${m}">${label}</span>`;
+}
+
+// ============================================================
+// Scene splitting
+// ============================================================
+function splitScenes(text) {
+  // Split by ## headings
+  const byHeading = text.split(/\n(?=##\s)/);
+  if (byHeading.length > 1) {
+    return byHeading.map(block => {
+      const lines  = block.trim().split('\n');
+      const heading = lines[0].replace(/^##\s*/, '').trim();
+      const body    = lines.slice(1).join('\n').trim();
+      return { heading, body: body || heading };
+    }).filter(s => s.body.length > 20);
+  }
+
+  // Split by double newline (paragraphs)
+  const byPara = text.split(/\n\n+/).map(p => p.trim()).filter(p => p.length > 30);
+  if (byPara.length > 1) {
+    return byPara.map((body, i) => ({
+      heading: `Scene ${i + 1}`,
+      body
+    }));
+  }
+
+  // Single block — split into ~3 sentences each
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  const chunkSize = 3;
+  const chunks = [];
+  for (let i = 0; i < sentences.length; i += chunkSize) {
+    chunks.push(sentences.slice(i, i + chunkSize).join(' ').trim());
+  }
+  return chunks.filter(c => c.length > 20).map((body, i) => ({
+    heading: `Scene ${i + 1}`,
+    body
+  }));
+}
+
+// ============================================================
+// Render
+// ============================================================
+function renderScene(index) {
+  currentIndex = index;
+  const scene   = scenes[index];
+  const learned = learnedSet.has(index);
+
+  // Progress
+  const pct = scenes.length > 0 ? Math.round(learnedSet.size / scenes.length * 100) : 0;
+  document.getElementById('progressFill').style.width  = pct + '%';
+  document.getElementById('progressText').textContent  = `${learnedSet.size} / ${scenes.length} 完了`;
+  document.getElementById('sceneCounter').textContent  = `Scene ${index + 1} / ${scenes.length}`;
+
+  // Nav buttons
+  document.getElementById('prevBtn').disabled = index === 0;
+  document.getElementById('nextBtn').disabled = index === scenes.length - 1;
+  const lb = document.getElementById('learnedBtn');
+  lb.classList.toggle('done', learned);
+  lb.querySelector('.nav-label').textContent = learned ? '完了済み' : '完了';
+
+  // Stop any TTS
+  window.speechSynthesis.cancel();
+  isTTSPlaying = false;
+
+  // Build card HTML
+  const main = document.getElementById('main');
+  main.innerHTML = `
+    <div class="scene-card${learned ? ' learned' : ''}" id="sceneCard">
+      <div class="scene-badge">
+        <span class="scene-num">Scene ${index + 1} / ${scenes.length}</span>
+        <span class="learned-badge">✅ 学習済み</span>
+      </div>
+      ${scene.heading !== `Scene ${index + 1}` ? `<p class="scene-heading">${escHtml(scene.heading)}</p>` : ''}
+      <p class="scene-text" id="sceneText">${escHtml(scene.body)}</p>
+
+      <div class="tts-row">
+        <button class="tts-btn" id="ttsBtn">
+          <span id="ttsBtnIcon">🔊</span>
+          <span id="ttsBtnLabel">再生</span>
+        </button>
+        <div class="speed-wrap">
+          <span class="speed-label">速度</span>
+          ${['0.7','0.85','1.0','1.2'].map(s=>`<button class="speed-btn${getRate()==s?' active':''}" data-speed="${s}">${s}×</button>`).join('')}
+        </div>
+      </div>
+
+      <div class="reveal-section">
+        <button class="reveal-btn" id="transBtn">
+          <span>🇯🇵 日本語訳</span><span class="arrow">▼</span>
+        </button>
+        <div class="reveal-content" id="transContent">
+          ${translCache[index]
+            ? `<div>${escHtml(translCache[index])}</div>`
+            : '<div class="loading-dot" id="transLoading" style="display:none;">翻訳中… ●</div><div id="transText"></div>'}
+        </div>
+      </div>
+
+      <div class="reveal-section">
+        <button class="reveal-btn" id="phrasesBtn">
+          <span>💡 重要フレーズ</span><span class="arrow">▼</span>
+        </button>
+        <div class="reveal-content" id="phrasesContent">
+          ${phrasesCache[index]
+            ? renderPhrases(phrasesCache[index])
+            : '<div class="loading-dot" id="phrasesLoading" style="display:none;">抽出中… ●</div><div id="phrasesText"></div>'}
+        </div>
+      </div>
+
+      <div class="shadow-section">
+        <div class="shadow-card">
+          <p class="shadow-title">🎤 シャドーイング</p>
+          <div class="shadow-steps">
+            <div class="shadow-step" id="step1"><span class="shadow-step-icon">🔊</span><span>① 聴く</span></div>
+            <div class="shadow-step" id="step2"><span class="shadow-step-icon">🎤</span><span>② 真似る</span></div>
+            <div class="shadow-step" id="step3"><span class="shadow-step-icon">👂</span><span>③ 確認</span></div>
+          </div>
+          <button class="shadow-rec-btn" id="shadowRecBtn">🎤 録音して練習</button>
+          <div class="shadow-playback" id="shadowPlayback" style="display:none;"></div>
+        </div>
+      </div>
+
+      <div class="reveal-section">
+        <button class="reveal-btn" id="convBtn">
+          <span>🗣 場面の会話を生成</span><span class="arrow">▼</span>
+        </button>
+        <div class="reveal-content" id="convContent">
+          ${convCache[index]
+            ? renderConvHTML(convCache[index])
+            : '<div class="loading-dot" id="convLoading" style="display:none;">会話を生成中… ●</div><div id="convText"></div>'}
+        </div>
+      </div>
+    </div>`;
+
+  // Speed buttons
+  document.querySelectorAll('.speed-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      localStorage.setItem('learn_rate', btn.dataset.speed);
+      document.querySelectorAll('.speed-btn').forEach(b => b.classList.toggle('active', b.dataset.speed === btn.dataset.speed));
+      if (isTTSPlaying) { window.speechSynthesis.cancel(); speakScene(); }
+    });
+  });
+
+  // TTS
+  document.getElementById('ttsBtn').addEventListener('click', () => {
+    if (isTTSPlaying) { window.speechSynthesis.cancel(); isTTSPlaying = false; updateTTSBtn(false); }
+    else speakScene();
+  });
+
+  // Translate reveal
+  setupReveal('transBtn', 'transContent', async () => {
+    if (translCache[index]) return;
+    document.getElementById('transLoading').style.display = 'block';
+    try {
+      const txt = await callModel(`Translate this English text into natural Japanese. Return only the translation, no explanation:\n\n${scene.body}`);
+      translCache[index] = txt;
+      saveCache();
+      document.getElementById('transLoading').style.display = 'none';
+      document.getElementById('transText').innerHTML =
+        `<div>${escHtml(txt)}</div>${modelBadgeHTML()}`;
+    } catch(e) {
+      document.getElementById('transLoading').style.display = 'none';
+      document.getElementById('transText').textContent = `翻訳失敗: ${e.message}`;
+    }
+  });
+
+  // Phrases reveal
+  setupReveal('phrasesBtn', 'phrasesContent', async () => {
+    if (phrasesCache[index]) return;
+    document.getElementById('phrasesLoading').style.display = 'block';
+    try {
+      const json = await callModel(`Extract 3-5 important English phrases or expressions from the following text.
+Return ONLY a JSON array like: [{"en":"phrase","ja":"日本語訳","example":"example sentence"}]
+No markdown, no explanation.
+
+Text: ${scene.body}`);
+      const clean = json.replace(/```json|```/g,'').trim();
+      phrasesCache[index] = JSON.parse(clean);
+      saveCache();
+      document.getElementById('phrasesLoading').style.display = 'none';
+      document.getElementById('phrasesText').innerHTML =
+        renderPhrases(phrasesCache[index]) + modelBadgeHTML();
+    } catch(e) {
+      document.getElementById('phrasesLoading').style.display = 'none';
+      document.getElementById('phrasesText').textContent = `取得失敗: ${e.message}`;
+    }
+  });
+
+  // Conversation reveal
+  setupReveal('convBtn', 'convContent', async () => {
+    if (convCache[index]) return;
+    document.getElementById('convLoading').style.display = 'block';
+    try {
+      const json = await callModel(`Based on the following English text, create a natural realistic conversation between two people (Person A and Person B) with 5-7 exchanges. The conversation should feel like a real-life situation related to the text content.
+
+Return ONLY a JSON array (no markdown, no explanation):
+[{"speaker":"A","name":"Alex","line":"..."},{"speaker":"B","name":"Maya","line":"..."}]
+
+Text: ${scene.body}`);
+      const clean = json.replace(/```json|```/g,'').trim();
+      convCache[index] = JSON.parse(clean);
+      saveCache();
+      document.getElementById('convLoading').style.display = 'none';
+      document.getElementById('convText').innerHTML =
+        renderConvHTML(convCache[index]) + modelBadgeHTML();
+      setupConvPlayer(index);
+    } catch(e) {
+      document.getElementById('convLoading').style.display = 'none';
+      document.getElementById('convText').textContent = `生成失敗: ${e.message}`;
+    }
+  });
+
+  // Shadowing
+  setupShadowing(scene);
+}
+
+// ============================================================
+// Conversation rendering & player
+// ============================================================
+function renderConvHTML(lines) {
+  if (!Array.isArray(lines) || lines.length === 0) return '(データなし)';
+  const linesHTML = lines.map((l, i) => {
+    const side = l.speaker === 'A' ? 'a' : 'b';
+    const emoji = l.speaker === 'A' ? '👤' : '👥';
+    return `
+      <div class="conv-line ${side}" data-i="${i}">
+        <div class="conv-avatar">${emoji}</div>
+        <div class="conv-bubble">
+          <p class="conv-speaker">${escHtml(l.name || l.speaker)}</p>
+          <p class="conv-text" id="convLine${i}">${escHtml(l.line)}</p>
+          <div class="conv-line-btns">
+            <button class="conv-play-btn" data-ci="${i}">🔊 聴く</button>
+            <button class="conv-rec-btn" data-ci="${i}">🎤 練習</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div id="convLines">${linesHTML}</div>
+    <div class="conv-all-bar">
+      <button class="conv-all-play" id="convAllPlay">▶ 全部再生</button>
+      <span class="conv-all-status" id="convAllStatus">全${lines.length}行</span>
+    </div>`;
+}
+
+function setupConvPlayer(index) {
+  const lines = convCache[index];
+  if (!lines) return;
+
+  // Individual line play
+  document.querySelectorAll('.conv-play-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = parseInt(btn.dataset.ci);
+      speakLine(lines[i].line, i, btn);
+    });
+  });
+
+  // Individual line record
+  document.querySelectorAll('.conv-rec-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = parseInt(btn.dataset.ci);
+      recordConvLine(i, btn);
+    });
+  });
+
+  // Play all
+  const playAllBtn = document.getElementById('convAllPlay');
+  if (playAllBtn) {
+    playAllBtn.addEventListener('click', () => {
+      if (convPlaying) { window.speechSynthesis.cancel(); convPlaying = false; playAllBtn.textContent = '▶ 全部再生'; return; }
+      playAllLines(lines, 0, playAllBtn);
+    });
+  }
+}
+
+function speakLine(text, lineIndex, btn) {
+  window.speechSynthesis.cancel();
+  const utt  = new SpeechSynthesisUtterance(text);
+  utt.lang   = 'en-US';
+  utt.rate   = parseFloat(getRate());
+  // Alternate voice pitch for A/B
+  utt.pitch  = lineIndex % 2 === 0 ? 1.0 : 0.8;
+  const lineEl = document.getElementById(`convLine${lineIndex}`);
+  utt.onstart = () => { if(btn) btn.classList.add('playing'); if(lineEl) lineEl.classList.add('playing'); };
+  utt.onend   = () => { if(btn) btn.classList.remove('playing'); if(lineEl) lineEl.classList.remove('playing'); };
+  window.speechSynthesis.speak(utt);
+}
+
+function playAllLines(lines, i, btn) {
+  if (i >= lines.length) {
+    convPlaying = false;
+    btn.textContent = '▶ 全部再生';
+    document.getElementById('convAllStatus').textContent = '完了 ✅';
+    return;
+  }
+  convPlaying = true;
+  btn.textContent  = '⏹ 停止';
+  btn.classList.add('stop');
+  document.getElementById('convAllStatus').textContent = `${lines[i].name || lines[i].speaker}: 再生中…`;
+
+  const utt  = new SpeechSynthesisUtterance(lines[i].line);
+  utt.lang   = 'en-US';
+  utt.rate   = parseFloat(getRate());
+  utt.pitch  = i % 2 === 0 ? 1.0 : 0.8;
+  const lineEl = document.getElementById(`convLine${i}`);
+  utt.onstart = () => { if(lineEl) lineEl.classList.add('playing'); };
+  utt.onend   = () => {
+    if(lineEl) lineEl.classList.remove('playing');
+    if (convPlaying) setTimeout(() => playAllLines(lines, i + 1, btn), 400);
+  };
+  utt.onerror = () => { if (convPlaying) playAllLines(lines, i + 1, btn); };
+  window.speechSynthesis.speak(utt);
+}
+
+async function recordConvLine(lineIndex, btn) {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mimeType = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : 'audio/webm';
+    const rec = new MediaRecorder(stream, { mimeType });
+    const chunks = [];
+    rec.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
+    rec.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      btn.classList.remove('recording');
+      btn.textContent = '🎤 練習';
+      const blob = new Blob(chunks, { type: mimeType });
+      const url  = URL.createObjectURL(blob);
+      // Insert playback under the bubble
+      const bubble = btn.closest('.conv-bubble');
+      let pb = bubble.querySelector('.conv-line-pb');
+      if (!pb) { pb = document.createElement('audio'); pb.className = 'conv-line-pb'; pb.style.cssText='width:100%;height:32px;margin-top:5px;'; bubble.appendChild(pb); }
+      pb.src = url; pb.controls = true;
+    };
+    rec.start(500);
+    btn.classList.add('recording');
+    btn.textContent = '⏹ 停止';
+
+    // Stop after 8 sec automatically
+    const stopTimer = setTimeout(() => rec.stop(), 8000);
+    btn.onclick = () => { clearTimeout(stopTimer); rec.stop(); btn.onclick = null; };
+  } catch(e) {
+    alert('マイクへのアクセスが許可されていません。');
+  }
+}
+
+function renderPhrases(phrases) {
+  if (!Array.isArray(phrases)) return '(データなし)';
+  return phrases.map(p => `
+    <div class="phrase-item">
+      <p class="phrase-en">${escHtml(p.en)}</p>
+      <p class="phrase-ja">${escHtml(p.ja)}</p>
+      ${p.example ? `<p class="phrase-example">${escHtml(p.example)}</p>` : ''}
+    </div>`).join('');
+}
+
+function setupReveal(btnId, contentId, onOpen) {
+  const btn = document.getElementById(btnId);
+  const content = document.getElementById(contentId);
+  if (!btn || !content) return;
+  btn.addEventListener('click', () => {
+    const isOpen = content.classList.contains('visible');
+    if (!isOpen) {
+      content.classList.add('visible');
+      btn.classList.add('open');
+      onOpen();
+    } else {
+      content.classList.remove('visible');
+      btn.classList.remove('open');
+    }
+  });
+}
+
+// ============================================================
+// TTS
+// ============================================================
+function getRate() { return localStorage.getItem('learn_rate') || '0.85'; }
+
+function speakScene() {
+  const scene = scenes[currentIndex];
+  if (!scene) return;
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(scene.body);
+  utt.lang = 'en-US';
+  utt.rate = parseFloat(getRate());
+  // Set selected voice if available
+  const voiceId = localStorage.getItem('learn_voice');
+  if (voiceId) {
+    const voices = window.speechSynthesis.getVoices();
+    const v = voices.find(v => v.voiceURI === voiceId);
+    if (v) utt.voice = v;
+  }
+  utt.onstart  = () => { isTTSPlaying = true;  updateTTSBtn(true); };
+  utt.onend    = () => { isTTSPlaying = false; updateTTSBtn(false); };
+  utt.onerror  = () => { isTTSPlaying = false; updateTTSBtn(false); };
+  window.speechSynthesis.speak(utt);
+  ttsUtterance = utt;
+}
+
+function updateTTSBtn(playing) {
+  const btn = document.getElementById('ttsBtn');
+  if (!btn) return;
+  btn.classList.toggle('playing', playing);
+  document.getElementById('ttsBtnIcon').textContent = playing ? '⏹' : '🔊';
+  document.getElementById('ttsBtnLabel').textContent = playing ? '停止' : '再生';
+  // Shadowing step indicator
+  if (playing) setStep(1);
+  else if (!shadowRec) setStep(0);
+}
+
+function setStep(active) {
+  [1,2,3].forEach(n => {
+    const el = document.getElementById(`step${n}`);
+    if (!el) return;
+    el.classList.remove('active','done');
+    if (n < active) el.classList.add('done');
+    if (n === active) el.classList.add('active');
+  });
+}
+
+// ============================================================
+// Shadowing
+// ============================================================
+function setupShadowing(scene) {
+  const btn = document.getElementById('shadowRecBtn');
+  if (!btn) return;
+  let isRec = false;
+
+  btn.addEventListener('click', async () => {
+    if (isRec) {
+      shadowRec?.stop();
+      return;
+    }
+    // Play TTS first, then record
+    if (!isTTSPlaying) { speakScene(); }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      shadowChunks = [];
+      const mimeType = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : 'audio/webm';
+      shadowRec = new MediaRecorder(stream, { mimeType });
+      shadowRec.ondataavailable = e => { if (e.data.size > 0) shadowChunks.push(e.data); };
+      shadowRec.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        isRec = false;
+        btn.classList.remove('recording');
+        btn.textContent = '🎤 もう一度練習';
+        setStep(3);
+        const blob = new Blob(shadowChunks, { type: mimeType });
+        if (shadowAudioURL) URL.revokeObjectURL(shadowAudioURL);
+        shadowAudioURL = URL.createObjectURL(blob);
+        const pb = document.getElementById('shadowPlayback');
+        pb.style.display = 'block';
+        pb.innerHTML = `<p style="font-size:12px;color:var(--sub);margin:0 0 4px;">あなたの録音:</p>
+          <audio src="${shadowAudioURL}" controls style="width:100%;height:36px;"></audio>`;
+      };
+      // Start after a short delay (let TTS play for 1 beat first)
+      setTimeout(() => {
+        shadowRec.start(500);
+        isRec = true;
+        btn.classList.add('recording');
+        btn.textContent = '⏹ 録音停止';
+        setStep(2);
+      }, 800);
+    } catch(e) {
+      alert('マイクへのアクセスが許可されていません。\nSettings → Safari → マイク を確認してください。');
+    }
+  });
+}
+
+// ============================================================
+// Learned toggle
+// ============================================================
+function toggleLearned() {
+  if (learnedSet.has(currentIndex)) learnedSet.delete(currentIndex);
+  else learnedSet.add(currentIndex);
+  saveProgress();
+  renderScene(currentIndex);
+  // Auto-advance if learned
+  if (learnedSet.has(currentIndex) && currentIndex < scenes.length - 1) {
+    setTimeout(() => renderScene(currentIndex + 1), 400);
+  }
+}
+
+// ============================================================
+// Persistence
+// ============================================================
+function saveProgress() {
+  localStorage.setItem(PROG_KEY, JSON.stringify({ learned: [...learnedSet], lastIndex: currentIndex }));
+}
+function loadProgress() {
+  const raw = localStorage.getItem(PROG_KEY);
+  if (!raw) return;
+  try { const d = JSON.parse(raw); learnedSet = new Set(d.learned || []); currentIndex = d.lastIndex || 0; } catch(_) {}
+}
+function saveCache() {
+  localStorage.setItem(CACHE_KEY, JSON.stringify({
+    trans: translCache, phrases: phrasesCache, conv: convCache
+  }));
+}
+function loadCache() {
+  const raw = localStorage.getItem(CACHE_KEY);
+  if (!raw) return;
+  try {
+    const d = JSON.parse(raw);
+    translCache  = d.trans   || {};
+    phrasesCache = d.phrases || {};
+    convCache    = d.conv    || {};
+  } catch(_) {}
+}
+
+// ============================================================
+// Voices
+// ============================================================
+function populateVoices() {
+  const sel = document.getElementById('voiceSelect');
+  const voices = window.speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
+  voices.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v.voiceURI; opt.textContent = `${v.name} (${v.lang})`;
+    if (localStorage.getItem('learn_voice') === v.voiceURI) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+window.speechSynthesis.onvoiceschanged = populateVoices;
+
+// ============================================================
+// Settings
+// ============================================================
+function loadSettings() {
+  document.getElementById('apiKeyInput').value   = localStorage.getItem(API_KEY)    || '';
+  document.getElementById('geminiKeyInput').value = localStorage.getItem(GEMINI_KEY) || '';
+  document.getElementById('openaiKeyInput').value = localStorage.getItem(OPENAI_KEY) || '';
+  document.getElementById('proxyInput').value    = localStorage.getItem(PROXY_KEY)  || '';
+  document.getElementById('rateSelect').value    = localStorage.getItem('learn_rate') || '0.85';
+  document.getElementById('modelSelect').value   = localStorage.getItem(MODEL_PREF) || 'auto';
+}
+function saveSettings() {
+  const claude  = document.getElementById('apiKeyInput').value.trim();
+  const gemini  = document.getElementById('geminiKeyInput').value.trim();
+  const openai  = document.getElementById('openaiKeyInput').value.trim();
+  const proxy   = document.getElementById('proxyInput').value.trim();
+  const voice   = document.getElementById('voiceSelect').value;
+  const model   = document.getElementById('modelSelect').value;
+  if (claude) localStorage.setItem(API_KEY,    claude);
+  if (gemini) localStorage.setItem(GEMINI_KEY, gemini);
+  if (openai) localStorage.setItem(OPENAI_KEY, openai);
+  if (proxy)  localStorage.setItem(PROXY_KEY,  proxy); else localStorage.removeItem(PROXY_KEY);
+  if (voice)  localStorage.setItem('learn_voice', voice);
+  localStorage.setItem('learn_rate', document.getElementById('rateSelect').value);
+  localStorage.setItem(MODEL_PREF, model);
+}
+
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  populateVoices();
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('settingsSheet').classList.add('open');
+});
+document.getElementById('overlay').addEventListener('click', () => {
+  saveSettings(); document.getElementById('overlay').classList.remove('open'); document.getElementById('settingsSheet').classList.remove('open');
+});
+document.getElementById('settingsClose').addEventListener('click', () => {
+  saveSettings(); document.getElementById('overlay').classList.remove('open'); document.getElementById('settingsSheet').classList.remove('open');
+});
+
+// ============================================================
+// Nav buttons
+// ============================================================
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if (currentIndex > 0) renderScene(currentIndex - 1);
+});
+document.getElementById('nextBtn').addEventListener('click', () => {
+  if (currentIndex < scenes.length - 1) renderScene(currentIndex + 1);
+});
+document.getElementById('learnedBtn').addEventListener('click', toggleLearned);
+
+// ============================================================
+// Utils
+// ============================================================
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ============================================================
+// Init
+// ============================================================
+function init() {
+  loadSettings();
+  loadCache();
+
+  const raw = localStorage.getItem(LEARN_KEY);
+  if (!raw) {
+    document.getElementById('emptyState').style.display = 'block';
+    document.getElementById('bottomNav').style.display  = 'none';
+    return;
+  }
+
+  try {
+    const data = JSON.parse(raw);
+    const title = data.title || 'Scene Learning';
+    document.getElementById('headerTitle').textContent = `🎓 ${title}`;
+    document.title = `${title} — kansei`;
+
+    scenes = splitScenes(data.content || '');
+    if (scenes.length === 0) {
+      document.getElementById('emptyState').style.display = 'block';
+      document.getElementById('bottomNav').style.display  = 'none';
+      return;
+    }
+
+    // Clear cache if content changed
+    const prevContent = localStorage.getItem('kansei_learn_content');
+    if (prevContent !== data.content) {
+      translCache = {}; phrasesCache = {}; convCache = {};
+      localStorage.setItem('kansei_learn_content', data.content);
+    }
+
+    loadProgress();
+    if (currentIndex >= scenes.length) currentIndex = 0;
+
+    document.getElementById('bottomNav').style.display = 'flex';
+    renderScene(currentIndex);
+    if (convCache[currentIndex]) setupConvPlayer(currentIndex);
+    populateVoices();
+  } catch(e) {
+    document.getElementById('emptyState').style.display = 'block';
+    document.getElementById('emptyState').textContent   = `エラー: ${e.message}`;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
+learn.html
+learn.html を表示しています。

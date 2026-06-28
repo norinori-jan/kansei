@@ -1,0 +1,1214 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F7F7F8">
+<title>kansei ライティング</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #F7F7F8; --card: #FFFFFF; --accent: #007AFF;
+    --green: #34C759; --orange: #FF9500; --purple: #AF52DE;
+    --red: #FF2D55; --text: #1C1C1E; --sub: #8A8A8E;
+    --border: #E5E5EA; --danger: #FF3B30; --radius: 14px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+    -webkit-font-smoothing: antialiased; }
+  body { padding-bottom: calc(env(safe-area-inset-bottom) + 90px); }
+
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(247,247,248,0.92); backdrop-filter: blur(10px);
+    padding: calc(env(safe-area-inset-top) + 10px) 16px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .back-btn { background: none; border: none; font-size: 15px; color: var(--accent); padding: 4px 0; white-space: nowrap; }
+  header h1 { font-size: 17px; font-weight: 700; margin: 0; flex: 1; }
+  .settings-btn { background: none; border: none; font-size: 20px; padding: 4px; }
+
+  main { padding: 12px 16px 0; max-width: 640px; margin: 0 auto; }
+
+  /* ---- Language bar ---- */
+  .lang-bar {
+    display: flex; gap: 6px; align-items: center;
+    padding: 8px 0 12px;
+  }
+  .lang-bar-label { font-size: 12px; color: var(--sub); font-weight: 600; flex-shrink: 0; }
+  .lang-btn {
+    flex: 1; padding: 7px 4px; border-radius: 10px;
+    border: 1.5px solid var(--border); background: var(--card);
+    font-size: 13px; font-weight: 600; color: var(--sub);
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+  }
+  .lang-btn .lang-flag { font-size: 16px; }
+  .lang-btn .lang-name { font-size: 10px; }
+  .lang-btn.active { border-color: var(--accent); background: rgba(0,122,255,0.07); color: var(--accent); }
+  .lang-btn.dual.active { border-color: var(--purple); background: rgba(175,82,222,0.07); color: var(--purple); }
+
+  /* ---- Dual output tabs ---- */
+  .dual-tabs { display: flex; gap: 0; margin-bottom: 0; border-radius: 10px 10px 0 0; overflow: hidden; }
+  .dual-tab {
+    flex: 1; padding: 9px; text-align: center;
+    font-size: 13px; font-weight: 600; background: var(--bg);
+    border: 1px solid var(--border); border-bottom: none; cursor: pointer;
+    color: var(--sub);
+  }
+  .dual-tab.active { background: var(--card); color: var(--text); }
+
+  /* ---- Progress indicator ---- */
+  .gen-progress {
+    display: none; align-items: center; gap: 10px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px; margin-top: 10px;
+    font-size: 13px; color: var(--sub);
+  }
+  .gen-progress.visible { display: flex; }
+  .prog-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; animation: blink 1s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  /* ---- Voice input ---- */
+  .idea-box-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 6px; }
+  .idea-box-actions { display: flex; align-items: center; gap: 8px; }
+  .mic-btn {
+    width: 34px; height: 34px; border-radius: 50%;
+    border: none; background: var(--accent); color: #fff;
+    font-size: 16px; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,122,255,0.3);
+    flex-shrink: 0;
+  }
+  .mic-btn.recording {
+    background: var(--danger);
+    box-shadow: 0 0 0 4px rgba(255,59,48,0.25);
+    animation: pulse 1s infinite;
+  }
+  @keyframes pulse { 0%,100%{box-shadow: 0 0 0 4px rgba(255,59,48,0.25)} 50%{box-shadow: 0 0 0 8px rgba(255,59,48,0.1)} }
+  .mic-btn.unsupported { background: var(--sub); box-shadow: none; cursor: not-allowed; }
+
+  .voice-interim {
+    font-size: 13px; color: var(--sub); font-style: italic;
+    padding: 0 14px 8px; min-height: 0; line-height: 1.4;
+    display: none;
+  }
+  .voice-interim.visible { display: block; }
+  .mode-scroll {
+    display: flex; gap: 8px; overflow-x: auto;
+    padding-bottom: 2px; margin-bottom: 14px;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .mode-scroll::-webkit-scrollbar { display: none; }
+  .mode-tab {
+    flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: var(--card); border: 1.5px solid var(--border);
+    border-radius: 12px; padding: 10px 16px; min-width: 80px; cursor: pointer;
+  }
+  .mode-tab.active { border-color: var(--accent); background: rgba(0,122,255,0.06); }
+  .mode-tab-icon { font-size: 22px; }
+  .mode-tab-label { font-size: 12px; font-weight: 600; color: var(--sub); white-space: nowrap; }
+  .mode-tab.active .mode-tab-label { color: var(--accent); }
+
+  /* ---- Section label ---- */
+  .section-label {
+    font-size: 11px; font-weight: 700; color: var(--sub);
+    text-transform: uppercase; letter-spacing: 0.06em; margin: 18px 0 8px;
+  }
+
+  /* ---- Quick idea box ---- */
+  .idea-box {
+    background: var(--card); border: 1.5px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .idea-box-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px 6px;
+  }
+  .idea-box-title { font-size: 13px; font-weight: 600; }
+  .idea-box-clear { background: none; border: none; font-size: 12px; color: var(--sub); }
+  .idea-textarea {
+    width: 100%; border: none; outline: none; resize: none;
+    font-size: 15px; line-height: 1.6; padding: 4px 14px 12px;
+    background: transparent; font-family: inherit; color: var(--text);
+    min-height: 80px;
+  }
+
+  /* ---- Materials banner ---- */
+  .materials-banner {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 11px 14px;
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+  }
+  .mb-icon { font-size: 20px; flex-shrink: 0; }
+  .mb-text { flex: 1; }
+  .mb-title { font-size: 13px; font-weight: 600; }
+  .mb-sub { font-size: 11px; color: var(--sub); margin-top: 1px; }
+  .mb-toggle { font-size: 13px; color: var(--accent); white-space: nowrap; }
+
+  .material-list { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+  .material-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 9px 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .material-card.excluded { opacity: 0.38; }
+  .mc-toggle {
+    width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+    border: 2px solid var(--border); background: none;
+    display: flex; align-items: center; justify-content: center; font-size: 12px;
+  }
+  .material-card.included .mc-toggle { background: var(--green); border-color: var(--green); color: #fff; }
+  .mc-body { flex: 1; min-width: 0; }
+  .mc-title { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mc-snippet { font-size: 11px; color: var(--sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
+  .mc-chips { display: flex; gap: 4px; margin-top: 3px; flex-wrap: wrap; }
+  .mc-chip { font-size: 11px; color: var(--accent); background: rgba(0,122,255,0.08); padding: 2px 7px; border-radius: 100px; }
+
+  /* ---- Mode-specific forms ---- */
+  .mode-form { display: flex; flex-direction: column; gap: 10px; }
+  .form-row { display: flex; flex-direction: column; gap: 4px; }
+  .form-row label { font-size: 12px; color: var(--sub); font-weight: 600; }
+  input[type="text"], input[type="date"], select, textarea.form-textarea {
+    width: 100%; font-size: 16px; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--card); font-family: inherit; color: var(--text);
+    -webkit-appearance: none;
+  }
+  textarea.form-textarea { min-height: 68px; resize: vertical; line-height: 1.5; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+
+  /* ---- Chip rows ---- */
+  .chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .opt-chip {
+    font-size: 13px; padding: 6px 14px; border-radius: 100px;
+    border: 1px solid var(--border); background: var(--card); color: var(--text);
+    cursor: pointer;
+  }
+  .opt-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* ---- Generate button ---- */
+  .generate-btn {
+    position: fixed; left: 16px; right: 16px;
+    bottom: calc(env(safe-area-inset-bottom) + 14px);
+    border: none; border-radius: 14px;
+    padding: 16px; font-size: 17px; font-weight: 700; color: #fff;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    z-index: 20; transition: background 0.2s;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  }
+  .generate-btn:disabled { background: var(--sub) !important; box-shadow: none; }
+  .generate-btn:active:not(:disabled) { transform: scale(0.98); }
+  .spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.35);
+    border-top-color: #fff; border-radius: 50%;
+    animation: spin 0.7s linear infinite; display: none; }
+  .generate-btn.loading .spinner { display: block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---- Draft output ---- */
+  .draft-section { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .draft-toolbar { display: flex; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--bg); }
+  .dt-btn { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 8px 4px; font-size: 12px; font-weight: 600; color: var(--accent); }
+  .dt-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .draft-content { padding: 14px 16px; font-size: 15px; line-height: 1.8; white-space: pre-wrap; word-break: break-word; min-height: 160px; }
+  .draft-meta { font-size: 11px; color: var(--sub); padding: 4px 14px 10px; text-align: right; }
+
+  /* ---- Settings ---- */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 30; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .overlay.open { opacity: 1; pointer-events: auto; }
+  .bottom-sheet {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: var(--bg); border-radius: 20px 20px 0 0; z-index: 31;
+    padding: 6px 16px calc(env(safe-area-inset-bottom) + 24px);
+    max-height: 85vh; overflow-y: auto;
+    transform: translateY(100%); transition: transform 0.25s ease-out;
+    box-shadow: 0 -2px 20px rgba(0,0,0,0.15);
+  }
+  .bottom-sheet.open { transform: translateY(0); }
+  .sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 10px auto 16px; }
+  .sheet-close { width: 100%; margin-top: 16px; background: none; border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 15px; color: var(--sub); }
+
+  .state-box { text-align: center; padding: 30px 20px; color: var(--sub); font-size: 14px; line-height: 1.8; }
+  .state-box a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <button class="back-btn" onclick="location.href='/quick-ref/'">← quick-ref</button>
+  <h1 id="headerTitle">✍️ kansei</h1>
+  <button class="settings-btn" id="settingsBtn">⚙️</button>
+</header>
+
+<main>
+
+  <!-- Language bar -->
+  <div class="lang-bar">
+    <span class="lang-bar-label">出力言語</span>
+    <button class="lang-btn active" data-lang="ja">
+      <span class="lang-flag">🇯🇵</span>
+      <span class="lang-name">日本語</span>
+    </button>
+    <button class="lang-btn" data-lang="en">
+      <span class="lang-flag">🇺🇸</span>
+      <span class="lang-name">English</span>
+    </button>
+    <button class="lang-btn dual" data-lang="both">
+      <span class="lang-flag">🌐</span>
+      <span class="lang-name">両方</span>
+    </button>
+  </div>
+
+  <!-- Mode tabs -->
+  <div class="mode-scroll" id="modeTabs">
+    <div class="mode-tab active" data-mode="travel">
+      <span class="mode-tab-icon">✈️</span>
+      <span class="mode-tab-label">旅行記</span>
+    </div>
+    <div class="mode-tab" data-mode="manual">
+      <span class="mode-tab-icon">📖</span>
+      <span class="mode-tab-label">説明書</span>
+    </div>
+    <div class="mode-tab" data-mode="idea">
+      <span class="mode-tab-icon">💡</span>
+      <span class="mode-tab-label">アイデア整理</span>
+    </div>
+    <div class="mode-tab" data-mode="sns">
+      <span class="mode-tab-icon">📣</span>
+      <span class="mode-tab-label">SNS投稿</span>
+    </div>
+    <div class="mode-tab" data-mode="free">
+      <span class="mode-tab-icon">🔮</span>
+      <span class="mode-tab-label">汎用</span>
+    </div>
+    <div class="mode-tab" data-mode="map">
+      <span class="mode-tab-icon">🗺</span>
+      <span class="mode-tab-label">思考整理</span>
+    </div>
+  </div>
+
+  <!-- Quick idea input (always visible) -->
+  <div class="section-label">⚡️ アイデア・メモ(何でも入力)</div>
+  <div class="idea-box">
+    <div class="idea-box-header">
+      <span class="idea-box-title" id="ideaBoxHint">ここに思いついたことを書く</span>
+      <div class="idea-box-actions">
+        <button class="mic-btn" id="micBtn" title="音声入力">🎤</button>
+        <button class="idea-box-clear" id="ideaClearBtn">クリア</button>
+      </div>
+    </div>
+    <div class="voice-interim" id="voiceInterim"></div>
+    <textarea class="idea-textarea" id="ideaInput" placeholder="箇条書きでも断片でもOK。マイクで話してもOK。"></textarea>
+  </div>
+
+  <!-- Materials from quick-ref -->
+  <div class="section-label">📦 quick-ref 素材</div>
+  <div class="materials-banner" id="materialsBanner">
+    <span class="mb-icon" id="mbIcon">📭</span>
+    <div class="mb-text">
+      <div class="mb-title" id="mbTitle">素材なし</div>
+      <div class="mb-sub" id="mbSub">quick-ref から素材を送ってください</div>
+    </div>
+    <span class="mb-toggle" id="mbToggle">▼</span>
+  </div>
+  <div id="materialList" style="display:none;"></div>
+
+  <!-- Mode-specific form -->
+  <div id="modeFormArea"></div>
+
+  <!-- Output -->
+  <div id="draftArea" style="display:none; margin-top: 20px;">
+    <div class="section-label">📄 生成された原稿</div>
+    <!-- Progress -->
+    <div class="gen-progress" id="genProgress">
+      <span class="prog-dot"></span>
+      <span id="genProgressText">生成中…</span>
+    </div>
+    <!-- Dual tabs (両方モード時) -->
+    <div class="dual-tabs" id="dualTabs" style="display:none;">
+      <div class="dual-tab active" data-panel="ja">🇯🇵 日本語</div>
+      <div class="dual-tab" data-panel="en">🇺🇸 English</div>
+    </div>
+    <div class="draft-section">
+      <div class="draft-toolbar">
+        <button class="dt-btn" id="copyBtn">📋 コピー</button>
+        <button class="dt-btn" id="downloadBtn">💾 MD</button>
+        <button class="dt-btn" id="noteBtn">📝 note</button>
+        <button class="dt-btn" id="learnBtn" style="color:#FF9500;border-color:#FF9500;">🎓 学習</button>
+        <button class="dt-btn primary" id="regenerateBtn">🔄 再生成</button>
+      </div>
+      <div class="draft-content" id="draftContent"></div>
+      <div class="draft-meta" id="draftMeta"></div>
+    </div>
+  </div>
+
+</main>
+
+<button class="generate-btn" id="generateBtn" style="background: var(--accent);">
+  <div class="spinner"></div>
+  <span id="generateLabel">✨ 生成する</span>
+</button>
+
+<!-- Settings sheet -->
+<div class="overlay" id="overlay"></div>
+<div class="bottom-sheet" id="settingsSheet">
+  <div class="sheet-handle"></div>
+  <p style="font-size:15px;font-weight:700;margin:0 0 14px;">⚙️ API 設定</p>
+
+  <div class="form-row">
+    <label>生成モデル</label>
+    <select id="modelSelect">
+      <option value="claude-sonnet-4-6">Claude Sonnet(標準)</option>
+      <option value="claude-haiku-4-5">Claude Haiku(速い・安い)</option>
+      <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+      <option value="gpt-4o-mini">OpenAI GPT-4o-mini</option>
+    </select>
+  </div>
+  <div class="form-row" style="margin-top:12px;">
+    <label>Claude API キー (ml_claude)</label>
+    <input type="text" id="apiKeyInput" placeholder="sk-ant-...">
+  </div>
+  <div class="form-row" style="margin-top:10px;">
+    <label>Gemini API キー (ml_gemini)</label>
+    <input type="text" id="geminiKeyInput" placeholder="AIza...">
+  </div>
+  <div class="form-row" style="margin-top:10px;">
+    <label>OpenAI API キー (ml_openai)</label>
+    <input type="text" id="openaiKeyInput" placeholder="sk-...">
+  </div>
+  <div class="form-row" style="margin-top:10px;">
+    <label>Cloudflare Workers プロキシ URL(任意・Claude専用)</label>
+    <input type="text" id="proxyUrlInput" placeholder="https://your-worker.workers.dev">
+  </div>
+  <div class="form-row" style="margin-top:12px;">
+    <label>出力の長さ</label>
+    <select id="lengthSelect">
+      <option value="short">短め (400〜800字)</option>
+      <option value="medium" selected>標準 (1000〜2000字)</option>
+      <option value="long">長め (2500〜4000字)</option>
+    </select>
+  </div>
+  <button class="sheet-close" id="settingsClose">保存して閉じる</button>
+</div>
+
+<script>
+// ============================================================
+// Constants & State
+// ============================================================
+const MATERIALS_KEY = 'kansei_materials';
+const API_KEY       = 'ml_claude';
+const GEMINI_KEY    = 'ml_gemini';
+const OPENAI_KEY    = 'ml_openai';
+const PROXY_KEY     = 'kansei_proxy_url';
+const MODEL_KEY     = 'kansei_model';
+const LENGTH_KEY    = 'kansei_length';
+
+let currentMode     = 'travel';
+let currentLang     = 'ja';       // 'ja' | 'en' | 'both'
+let draftTexts      = { ja:'', en:'' };
+let activeDraftPanel = 'ja';
+let materials       = [];
+let includedIds     = new Set();
+let materialsOpen   = false;
+let draftText       = '';         // 後方互換用(コピー等で参照)
+
+// ============================================================
+// Mode definitions
+// ============================================================
+const MODES = {
+  travel: {
+    label: '✈️ 旅行記',
+    color: '#FF2D55',
+    hint: '旅の記憶・気づき・場所のメモを入力',
+    generateLabel: '✈️ 旅行記を生成',
+    form: () => `
+      <div class="section-label">🗺 旅の情報</div>
+      <div class="mode-form">
+        <div class="form-row"><label>タイトル</label><input type="text" id="f_title" placeholder="例: 茨城・夏の海辺ひとり旅"></div>
+        <div class="form-row"><label>旅行日</label><input type="date" id="f_date" value="${today()}"></div>
+        <div class="form-row"><label>場所</label><input type="text" id="f_place" placeholder="例: 茨城県大洗町"></div>
+        <div class="form-row"><label>テーマ・キーワード</label><input type="text" id="f_theme" placeholder="例: 孤独と海鮮と夕陽"></div>
+      </div>
+      <div class="section-label">✍️ スタイル</div>
+      <div class="chip-row" id="cr_style">
+        <button class="opt-chip active" data-v="旅行記">旅行記</button>
+        <button class="opt-chip" data-v="コラム">コラム</button>
+        <button class="opt-chip" data-v="日記">日記</button>
+        <button class="opt-chip" data-v="エッセイ">エッセイ</button>
+      </div>
+      <div class="section-label">🗣 語調</div>
+      <div class="chip-row" id="cr_tone">
+        <button class="opt-chip active" data-v="です・ます調">です・ます調</button>
+        <button class="opt-chip" data-v="だ・である調">だ・である調</button>
+        <button class="opt-chip" data-v="語りかけ調">語りかけ調</button>
+      </div>`,
+    prompt: () => {
+      const style = activeChip('cr_style');
+      const tone  = activeChip('cr_tone');
+      const len   = lengthGuide();
+      return `あなたは旅行記ライターです。以下の素材と条件からnote.com用の旅行記を書いてください。
+
+## 条件
+- 形式: ${style} / 語調: ${tone} / 文字数: ${len}
+${v('f_title')  ? `- タイトル案: ${v('f_title')}` : ''}
+${v('f_date')   ? `- 旅行日: ${v('f_date')}` : ''}
+${v('f_place')  ? `- 場所: ${v('f_place')}` : ''}
+${v('f_theme')  ? `- テーマ: ${v('f_theme')}` : ''}
+
+## 構成指示
+- 冒頭は読者を引き込む書き出し
+- ## 見出しで場面を区切る
+- 締めは旅から得た気づき・余韻
+- 末尾にnote用ハッシュタグ5〜8個
+
+## 素材
+${materialsText()}
+${ideaText()}`;
+    }
+  },
+
+  manual: {
+    label: '📖 説明書',
+    color: '#34C759',
+    hint: '機能・手順・注意点などを箇条書きで入力',
+    generateLabel: '📖 説明書を生成',
+    form: () => `
+      <div class="section-label">📋 ドキュメント情報</div>
+      <div class="mode-form">
+        <div class="form-row"><label>対象ツール・機能名</label><input type="text" id="f_target" placeholder="例: quick-ref の音源添付機能"></div>
+        <div class="form-row"><label>読者(誰向け?)</label><input type="text" id="f_reader" placeholder="例: iPhone ユーザー / 開発者"></div>
+      </div>
+      <div class="section-label">📄 出力形式</div>
+      <div class="chip-row" id="cr_doctype">
+        <button class="opt-chip active" data-v="README">README</button>
+        <button class="opt-chip" data-v="使い方ガイド">使い方ガイド</button>
+        <button class="opt-chip" data-v="手順書">手順書</button>
+        <button class="opt-chip" data-v="FAQ">FAQ</button>
+        <button class="opt-chip" data-v="仕様書">仕様書</button>
+      </div>`,
+    prompt: () => {
+      const dtype = activeChip('cr_doctype');
+      const len   = lengthGuide();
+      return `あなたは技術ドキュメントライターです。以下の情報から「${dtype}」を書いてください。
+
+## 条件
+- 形式: Markdown / 文字数: ${len}
+${v('f_target') ? `- 対象: ${v('f_target')}` : ''}
+${v('f_reader') ? `- 読者: ${v('f_reader')}` : ''}
+
+## 構成指示
+- # タイトル
+- ## 概要(2〜3文)
+- ## 特徴・機能一覧(箇条書き)
+- ## 使い方(手順番号付き)
+- ## 注意事項
+- 簡潔かつ漏れなく。Markdown見出しを適切に使う。
+
+## 素材
+${materialsText()}
+${ideaText()}`;
+    }
+  },
+
+  idea: {
+    label: '💡 アイデア整理',
+    color: '#FF9500',
+    hint: '断片的なアイデア・思いつきを入力',
+    generateLabel: '💡 アイデアを整理',
+    form: () => `
+      <div class="section-label">🎯 整理の目的</div>
+      <div class="chip-row" id="cr_goal">
+        <button class="opt-chip active" data-v="構造化して文章化">構造化して文章化</button>
+        <button class="opt-chip" data-v="企画書にまとめる">企画書</button>
+        <button class="opt-chip" data-v="TO-DOリストにする">TO-DO</button>
+        <button class="opt-chip" data-v="提案書にする">提案書</button>
+      </div>
+      <div class="section-label">📌 コンテキスト</div>
+      <div class="mode-form">
+        <div class="form-row"><label>何のプロジェクト・テーマ?</label><input type="text" id="f_context" placeholder="例: quick-ref の音声入力機能追加"></div>
+        <div class="form-row"><label>誰に見せる?(任意)</label><input type="text" id="f_audience" placeholder="例: 自分用 / チーム / note読者"></div>
+      </div>`,
+    prompt: () => {
+      const goal = activeChip('cr_goal');
+      const len  = lengthGuide();
+      return `あなたは思考整理の専門家です。以下の断片的なアイデアや素材を「${goal}」に変換してください。
+
+## 条件
+- 出力形式: Markdown / 長さ: ${len}
+${v('f_context')  ? `- テーマ・プロジェクト: ${v('f_context')}` : ''}
+${v('f_audience') ? `- 対象読者: ${v('f_audience')}` : ''}
+
+## 指示
+- 重複を整理し、論理的な順序に並べ直す
+- 足りない視点があれば補完する
+- 実行可能な粒度で記述する
+- 見出しで大きな塊を作り、読みやすくする
+
+## 素材・アイデア
+${materialsText()}
+${ideaText()}`;
+    }
+  },
+
+  sns: {
+    label: '📣 SNS投稿',
+    color: '#AF52DE',
+    hint: '伝えたい体験・発見・気づきを入力',
+    generateLabel: '📣 SNS投稿を生成',
+    form: () => `
+      <div class="section-label">📱 プラットフォーム</div>
+      <div class="chip-row" id="cr_platform">
+        <button class="opt-chip active" data-v="X(Twitter)">X</button>
+        <button class="opt-chip" data-v="Instagram">Instagram</button>
+        <button class="opt-chip" data-v="note">note</button>
+        <button class="opt-chip" data-v="Threads">Threads</button>
+      </div>
+      <div class="section-label">🎭 トーン</div>
+      <div class="chip-row" id="cr_sns_tone">
+        <button class="opt-chip active" data-v="共感・感情重視">共感・感情</button>
+        <button class="opt-chip" data-v="情報・知識共有">情報・知識</button>
+        <button class="opt-chip" data-v="ユーモア・軽め">ユーモア</button>
+        <button class="opt-chip" data-v="詩的・文学的">詩的</button>
+      </div>`,
+    prompt: () => {
+      const platform = activeChip('cr_platform');
+      const tone     = activeChip('cr_sns_tone');
+      const lenMap   = { short: '140字以内', medium: '300〜500字', long: '500〜800字' };
+      const len      = lenMap[localStorage.getItem(LENGTH_KEY) || 'medium'];
+      return `あなたはSNSコピーライターです。以下の素材から${platform}用の投稿文を書いてください。
+
+## 条件
+- プラットフォーム: ${platform}
+- トーン: ${tone}
+- 長さ: ${len}
+- ハッシュタグ: 末尾に3〜5個
+
+## 指示
+- 冒頭1行で引き付ける
+- 体験・感情・気づきを凝縮する
+- ${platform === 'X(Twitter)' ? '改行を活かしてリズムを作る' : '読者が保存したくなる内容にする'}
+- 投稿文を3パターン生成して番号をつける
+
+## 素材
+${materialsText()}
+${ideaText()}`;
+    }
+  },
+
+  map: {
+    label: '🗺 思考整理',
+    color: '#5856D6',
+    hint: '整理したい考え・悩み・アイデアを自由に書く',
+    generateLabel: '🗺 図を生成',
+    form: () => `
+      <div class="section-label">🗂 図の種類</div>
+      <div class="chip-row" id="cr_maptype">
+        <button class="opt-chip active" data-v="flowchart">フローチャート</button>
+        <button class="opt-chip" data-v="mindmap">マインドマップ</button>
+        <button class="opt-chip" data-v="sequence">時系列・プロセス</button>
+      </div>
+      <div class="section-label" style="margin-top:14px;">🎯 目的</div>
+      <div class="chip-row" id="cr_maptarget">
+        <button class="opt-chip active" data-v="整理する">考えを整理</button>
+        <button class="opt-chip" data-v="決断する">決断する</button>
+        <button class="opt-chip" data-v="原因を探る">原因を探る</button>
+        <button class="opt-chip" data-v="手順を作る">手順を作る</button>
+      </div>`,
+    prompt: () => {
+      const maptype  = activeChip('cr_maptype');
+      const target   = activeChip('cr_maptarget');
+      const typeMap  = {
+        'flowchart': 'flowchart TD',
+        'mindmap':   'mindmap',
+        'sequence':  'sequenceDiagram'
+      };
+      const syntax = typeMap[maptype] || 'flowchart TD';
+      return `以下の内容を「${target}」ための${maptype}に変換してください。
+
+出力はMermaid記法のコードブロックのみ。説明・コメント不要。
+必ず \`\`\`mermaid から始めてください。
+
+Mermaid構文のヒント:
+- flowchart TD: A[開始] --> B{判断} --> C[結果]
+- mindmap: root((中心)) \n  topic1 \n    detail
+- sequenceDiagram: 参加者A->>参加者B: メッセージ
+
+素材:
+${materialsText()}
+${ideaText()}`;
+    }
+  },
+    label: '🔮 汎用',
+    color: '#5856D6',
+    hint: '何でも入力。Claudeへの指示も書いてOK',
+    generateLabel: '🔮 生成する',
+    form: () => `
+      <div class="section-label">📝 Claudeへの指示</div>
+      <div class="mode-form">
+        <div class="form-row">
+          <label>どんな文章を作りたい?</label>
+          <textarea class="form-textarea" id="f_instruction" placeholder="例: 以下の素材をもとに、プレゼン用のスライド原稿を作ってください。箇条書きで各スライドの見出しと内容を書いてください。"></textarea>
+        </div>
+        <div class="form-row">
+          <label>出力形式(任意)</label>
+          <input type="text" id="f_format" placeholder="例: Markdown / 箇条書き / 会話形式">
+        </div>
+      </div>`,
+    prompt: () => {
+      const inst   = v('f_instruction') || '以下の素材をまとめて、わかりやすい文章にしてください。';
+      const fmt    = v('f_format');
+      const len    = lengthGuide();
+      return `${inst}
+
+## 条件
+- 長さ: ${len}
+${fmt ? `- 出力形式: ${fmt}` : ''}
+
+## 素材
+${materialsText()}
+${ideaText()}`;
+    }
+  }
+};
+
+// ============================================================
+// Helpers
+// ============================================================
+function today() { return new Date().toISOString().slice(0, 10); }
+function v(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+function activeChip(rowId) {
+  const el = document.getElementById(rowId);
+  if (!el) return '';
+  const a = el.querySelector('.opt-chip.active');
+  return a ? a.dataset.v : '';
+}
+function lengthGuide() {
+  return { short:'400〜800字', medium:'1000〜2000字', long:'2500〜4000字' }[localStorage.getItem(LENGTH_KEY) || 'medium'];
+}
+function materialsText() {
+  const included = materials.filter((_, i) => includedIds.has(i));
+  if (included.length === 0) return '(素材なし)';
+  return included.map((m, i) => {
+    const fields = (m.fields || []).map(f => `  - ${f.key}: ${f.value}`).join('\n');
+    return `### 素材${i+1}: ${m.title}
+タグ: ${(m.tags||[]).join(', ')}
+${m.body ? m.body : ''}
+${fields}`.trim();
+  }).join('\n\n');
+}
+function ideaText() {
+  const txt = document.getElementById('ideaInput').value.trim();
+  return txt ? `\n### 追加メモ・アイデア\n${txt}` : '';
+}
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ============================================================
+// Materials
+// ============================================================
+function loadMaterials() {
+  const raw = localStorage.getItem(MATERIALS_KEY);
+  if (!raw) return;
+  try {
+    const data = JSON.parse(raw);
+    materials = data.materials || [];
+    includedIds = new Set(materials.map((_,i)=>i));
+    const tag = data.tag ? `#${data.tag}` : '全項目';
+    const dateStr = data.exportedAt
+      ? new Date(data.exportedAt).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
+      : '';
+    document.getElementById('mbIcon').textContent  = '📦';
+    document.getElementById('mbTitle').textContent = `${materials.length}件 (${tag})`;
+    document.getElementById('mbSub').textContent   = `受信 ${dateStr}`;
+  } catch(e) {}
+}
+
+function renderMaterialList() {
+  const el = document.getElementById('materialList');
+  if (materials.length === 0) {
+    el.innerHTML = `<div class="state-box">
+      <a href="/quick-ref/">← quick-ref で素材を送る</a>
+    </div>`;
+    return;
+  }
+  el.innerHTML = '';
+  materials.forEach((m, i) => {
+    const inc = includedIds.has(i);
+    const card = document.createElement('div');
+    card.className = `material-card ${inc ? 'included' : 'excluded'}`;
+    const snippet = m.body || (m.fields||[]).map(f=>`${f.key}: ${f.value}`).join(' / ') || '';
+    const tags = (m.tags||[]).map(t=>`<span class="mc-chip">#${escHtml(t)}</span>`).join('');
+    card.innerHTML = `
+      <button class="mc-toggle" data-i="${i}">${inc?'✓':''}</button>
+      <div class="mc-body">
+        <div class="mc-title">${escHtml(m.title||'(無題)')}</div>
+        ${snippet?`<div class="mc-snippet">${escHtml(snippet)}</div>`:''}
+        ${tags?`<div class="mc-chips">${tags}</div>`:''}
+      </div>`;
+    card.querySelector('.mc-toggle').addEventListener('click', () => {
+      if (includedIds.has(i)) includedIds.delete(i); else includedIds.add(i);
+      renderMaterialList();
+    });
+    el.appendChild(card);
+  });
+}
+
+document.getElementById('materialsBanner').addEventListener('click', () => {
+  materialsOpen = !materialsOpen;
+  const listEl = document.getElementById('materialList');
+  listEl.style.display = materialsOpen ? 'flex' : 'none';
+  if (materialsOpen) { listEl.style.flexDirection = 'column'; renderMaterialList(); }
+  document.getElementById('mbToggle').textContent = materialsOpen ? '▲' : '▼';
+});
+
+// ============================================================
+// Mode rendering
+// ============================================================
+function renderMode(mode) {
+  currentMode = mode;
+  const def = MODES[mode];
+
+  // Tab highlight
+  document.querySelectorAll('.mode-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.mode === mode);
+  });
+
+  // Header color & label
+  document.getElementById('headerTitle').textContent = def.label;
+  document.getElementById('generateBtn').style.background = def.color;
+  document.getElementById('generateLabel').textContent = def.generateLabel;
+  document.getElementById('ideaBoxHint').textContent = def.hint;
+
+  // Form
+  document.getElementById('modeFormArea').innerHTML = def.form();
+
+  // Chip rows — toggle active
+  document.getElementById('modeFormArea').querySelectorAll('.chip-row').forEach(row => {
+    row.querySelectorAll('.opt-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        row.querySelectorAll('.opt-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+      });
+    });
+  });
+  updateGenerateBtn();
+}
+
+document.getElementById('modeTabs').querySelectorAll('.mode-tab').forEach(tab => {
+  tab.addEventListener('click', () => renderMode(tab.dataset.mode));
+});
+
+// ============================================================
+// Language bar
+// ============================================================
+document.querySelectorAll('.lang-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentLang = btn.dataset.lang;
+    updateGenerateBtn();
+  });
+});
+
+function updateGenerateBtn() {
+  const def = MODES[currentMode];
+  const btn = document.getElementById('generateBtn');
+  if (currentLang === 'both') {
+    btn.style.background = 'linear-gradient(135deg, #007AFF 50%, #AF52DE 100%)';
+    document.getElementById('generateLabel').textContent = '🌐 日英両方を生成';
+  } else {
+    btn.style.background = def.color;
+    document.getElementById('generateLabel').textContent =
+      currentLang === 'en'
+        ? def.generateLabel.replace(/を生成|を整理/, ' in English')
+        : def.generateLabel;
+  }
+}
+
+function langInstruction(lang) {
+  if (lang === 'en') return '\n\n## Language\nWrite the entire output in natural English. Do NOT use Japanese.';
+  if (lang === 'ja') return '\n\n## 言語\n日本語で出力してください。';
+  return '';
+}
+
+// ============================================================
+// Dual panel tabs
+// ============================================================
+document.getElementById('dualTabs').querySelectorAll('.dual-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.dual-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    activeDraftPanel = tab.dataset.panel;
+    const text = draftTexts[activeDraftPanel] || '';
+    document.getElementById('draftContent').textContent = text;
+    document.getElementById('draftMeta').textContent    = `${text.length.toLocaleString()}字`;
+    draftText = text;
+  });
+});
+
+function showProgress(msg) {
+  const el = document.getElementById('genProgress');
+  el.classList.add('visible');
+  document.getElementById('genProgressText').textContent = msg;
+}
+function hideProgress() {
+  document.getElementById('genProgress').classList.remove('visible');
+}
+
+// ============================================================
+// Generate (language-aware)
+// ============================================================
+async function generate() {
+  const idea = document.getElementById('ideaInput').value.trim();
+  const inc  = materials.filter((_,i) => includedIds.has(i));
+  if (inc.length === 0 && !idea) {
+    alert('素材かアイデアメモを入力してください。'); return;
+  }
+
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+  document.getElementById('draftArea').style.display = 'block';
+  hideProgress();
+
+  try {
+    const basePrompt = MODES[currentMode].prompt();
+
+    if (currentMode === 'map') {
+      showProgress('🗺 図を生成中…');
+      const raw    = await callAPI(MODES['map'].prompt());
+      hideProgress();
+      const result = await renderMermaid(raw);
+      draftText    = result?.code || raw;
+      draftTexts   = { ja: draftText, en: '' };
+
+      if (result?.svg) {
+        document.getElementById('draftContent').innerHTML =
+          `<div style="overflow-x:auto;padding:8px 0;">${result.svg}</div>
+           <details style="margin-top:12px;">
+             <summary style="font-size:12px;color:var(--sub);cursor:pointer;">Mermaidソースを表示</summary>
+             <pre style="font-size:12px;overflow-x:auto;margin-top:8px;white-space:pre-wrap;">${escHtml(result.code)}</pre>
+           </details>`;
+      } else {
+        document.getElementById('draftContent').innerHTML =
+          `<p style="color:var(--danger);font-size:13px;">図の描画に失敗しました: ${result?.error || '不明'}</p>
+           <pre style="font-size:13px;white-space:pre-wrap;">${escHtml(result?.code || raw)}</pre>`;
+      }
+      document.getElementById('draftMeta').textContent = 'Mermaid形式';
+      document.getElementById('dualTabs').style.display = 'none';
+      document.getElementById('draftArea').style.display = 'block';
+      document.getElementById('draftArea').scrollIntoView({ behavior:'smooth', block:'start' });
+
+    } else if (currentLang === 'both') {
+      // --- Dual: sequential generation ---
+      document.getElementById('dualTabs').style.display = 'flex';
+      draftTexts = { ja:'', en:'' };
+
+      // Japanese first
+      showProgress('🇯🇵 日本語版を生成中…');
+      const jaPrompt = basePrompt + langInstruction('ja');
+      draftTexts.ja  = await callAPI(jaPrompt);
+
+      // English second
+      showProgress('🇺🇸 English version generating…');
+      const enPrompt = basePrompt + langInstruction('en');
+      draftTexts.en  = await callAPI(enPrompt);
+
+      hideProgress();
+      activeDraftPanel = 'ja';
+      document.querySelectorAll('.dual-tab').forEach(t =>
+        t.classList.toggle('active', t.dataset.panel === 'ja'));
+      draftText = draftTexts.ja;
+      document.getElementById('draftContent').textContent = draftTexts.ja;
+      document.getElementById('draftMeta').textContent =
+        `🇯🇵 ${draftTexts.ja.length.toLocaleString()}字 ／ 🇺🇸 ${draftTexts.en.length.toLocaleString()} chars`;
+
+    } else {
+      // --- Single language ---
+      document.getElementById('dualTabs').style.display = 'none';
+      const label = currentLang === 'en' ? '🇺🇸 Generating in English…' : '🇯🇵 生成中…';
+      showProgress(label);
+      const prompt = basePrompt + langInstruction(currentLang);
+      const text   = await callAPI(prompt);
+      hideProgress();
+      draftText = text;
+      draftTexts = { ja: currentLang === 'ja' ? text : '', en: currentLang === 'en' ? text : '' };
+      document.getElementById('draftContent').textContent = text;
+      document.getElementById('draftMeta').textContent    =
+        currentLang === 'en'
+          ? `${text.split(/\s+/).length.toLocaleString()} words`
+          : `${text.length.toLocaleString()}字`;
+    }
+
+    document.getElementById('draftArea').scrollIntoView({ behavior:'smooth', block:'start' });
+
+  } catch(err) {
+    hideProgress();
+    alert(`生成失敗:\n${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    updateGenerateBtn();
+  }
+}
+
+async function callAPI(prompt) {
+  const model    = localStorage.getItem(MODEL_KEY) || 'claude-sonnet-4-6';
+  const proxyUrl = localStorage.getItem(PROXY_KEY) || '';
+
+  if (model.startsWith('gemini')) {
+    const key = localStorage.getItem(GEMINI_KEY);
+    if (!key) throw new Error('Gemini APIキーが未設定です。⚙️ から設定してください。');
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+    const res = await fetch(url, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+    });
+    if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
+    const d = await res.json();
+    return d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  }
+
+  if (model.startsWith('gpt')) {
+    const key = localStorage.getItem(OPENAI_KEY);
+    if (!key) throw new Error('OpenAI APIキーが未設定です。⚙️ から設定してください。');
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+      body: JSON.stringify({ model, max_tokens: 4096, messages: [{ role:'user', content: prompt }] })
+    });
+    if (!res.ok) throw new Error(`OpenAI HTTP ${res.status}`);
+    const d = await res.json();
+    return d.choices?.[0]?.message?.content || '';
+  }
+
+  // Claude (default)
+  const claudeKey = localStorage.getItem(API_KEY) || '';
+  const endpoint  = proxyUrl || 'https://api.anthropic.com/v1/messages';
+  if (!proxyUrl && !claudeKey) throw new Error('Claude APIキーが未設定です。⚙️ から設定してください。');
+  const headers = { 'Content-Type': 'application/json' };
+  if (!proxyUrl) { headers['x-api-key'] = claudeKey; headers['anthropic-version'] = '2023-06-01'; }
+  const res = await fetch(endpoint, {
+    method: 'POST', headers,
+    body: JSON.stringify({ model, max_tokens: 4096, messages:[{ role:'user', content: prompt }] })
+  });
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error?.message || `HTTP ${res.status}`); }
+  const data = await res.json();
+  return data.content?.[0]?.text || '';
+}
+
+document.getElementById('generateBtn').addEventListener('click', generate);
+document.getElementById('regenerateBtn').addEventListener('click', generate);
+
+// ============================================================
+// Draft actions
+// ============================================================
+document.getElementById('copyBtn').addEventListener('click', async () => {
+  if (!draftText) return;
+  try {
+    await navigator.clipboard.writeText(draftText);
+    const b = document.getElementById('copyBtn');
+    b.textContent = '✅ OK'; setTimeout(() => b.textContent = '📋 コピー', 2000);
+  } catch { alert('原稿を長押しして手動コピーしてください。'); }
+});
+
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  if (!draftText) return;
+  const lang = currentLang === 'both' ? activeDraftPanel : currentLang;
+  const name = `kansei-${currentMode}-${lang}-${today()}.md`;
+  const blob = new Blob([draftText], { type:'text/markdown' });
+  const url  = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+});
+
+document.getElementById('noteBtn').addEventListener('click', () => {
+  window.open('https://note.com/notes/new', '_blank');
+});
+
+document.getElementById('learnBtn').addEventListener('click', () => {
+  if (!draftText) return;
+  const lang = currentLang === 'both' ? activeDraftPanel : currentLang;
+  if (lang !== 'en' && !confirm('日本語テキストです。英語テキストを学習するには🇺🇸/🌐で生成してください。\n\nこのまま続けますか?')) return;
+  const titleHint = document.getElementById('ideaInput').value.trim().slice(0, 60)
+    || MODES[currentMode].label;
+  localStorage.setItem('kansei_learn', JSON.stringify({
+    source: 'kansei-draft',
+    mode: currentMode,
+    lang,
+    content: draftText,
+    title: titleHint,
+    createdAt: Date.now()
+  }));
+  location.href = '/kansei/learn.html';
+});
+
+// ============================================================
+// Settings
+// ============================================================
+function loadSettings() {
+  document.getElementById('apiKeyInput').value    = localStorage.getItem(API_KEY)    || '';
+  document.getElementById('geminiKeyInput').value = localStorage.getItem(GEMINI_KEY) || '';
+  document.getElementById('openaiKeyInput').value = localStorage.getItem(OPENAI_KEY) || '';
+  document.getElementById('proxyUrlInput').value  = localStorage.getItem(PROXY_KEY)  || '';
+  document.getElementById('modelSelect').value    = localStorage.getItem(MODEL_KEY)  || 'claude-sonnet-4-6';
+  document.getElementById('lengthSelect').value   = localStorage.getItem(LENGTH_KEY) || 'medium';
+}
+function saveSettings() {
+  const claude  = document.getElementById('apiKeyInput').value.trim();
+  const gemini  = document.getElementById('geminiKeyInput').value.trim();
+  const openai  = document.getElementById('openaiKeyInput').value.trim();
+  const proxy   = document.getElementById('proxyUrlInput').value.trim();
+  if (claude) localStorage.setItem(API_KEY,    claude);
+  if (gemini) localStorage.setItem(GEMINI_KEY, gemini);
+  if (openai) localStorage.setItem(OPENAI_KEY, openai);
+  if (proxy)  localStorage.setItem(PROXY_KEY, proxy); else localStorage.removeItem(PROXY_KEY);
+  localStorage.setItem(MODEL_KEY,  document.getElementById('modelSelect').value);
+  localStorage.setItem(LENGTH_KEY, document.getElementById('lengthSelect').value);
+}
+
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('settingsSheet').classList.add('open');
+});
+function closeSettings() {
+  saveSettings();
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('settingsSheet').classList.remove('open');
+}
+document.getElementById('overlay').addEventListener('click', closeSettings);
+document.getElementById('settingsClose').addEventListener('click', closeSettings);
+
+document.getElementById('ideaClearBtn').addEventListener('click', () => {
+  document.getElementById('ideaInput').value = '';
+});
+
+// ============================================================
+// Voice Input (Web Speech API)
+// ============================================================
+const micBtn       = document.getElementById('micBtn');
+const ideaInput    = document.getElementById('ideaInput');
+const voiceInterim = document.getElementById('voiceInterim');
+let recognition    = null;
+let isRecording    = false;
+
+function setupSpeechRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    micBtn.textContent = '🚫';
+    micBtn.classList.add('unsupported');
+    micBtn.title = '音声入力非対応のブラウザです';
+    return null;
+  }
+  const r = new SR();
+  r.continuous      = true;
+  r.interimResults  = true;
+  r.maxAlternatives = 1;
+  // 言語は現在の言語セレクターに合わせる
+  r.lang = currentLang === 'en' ? 'en-US' : 'ja-JP';
+
+  let finalBuffer = '';
+
+  r.onstart = () => {
+    isRecording = true;
+    micBtn.classList.add('recording');
+    micBtn.textContent = '⏹';
+    voiceInterim.classList.add('visible');
+    voiceInterim.textContent = r.lang === 'ja-JP' ? '🎤 話してください…' : '🎤 Speak now…';
+    finalBuffer = ideaInput.value;
+  };
+
+  r.onresult = (e) => {
+    let interim = '';
+    let final   = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) final += t;
+      else interim += t;
+    }
+    if (final) {
+      finalBuffer += (finalBuffer ? '\n' : '') + final.trim();
+      ideaInput.value = finalBuffer;
+    }
+    voiceInterim.textContent = interim || '';
+  };
+
+  r.onerror = (e) => {
+    if (e.error === 'not-allowed') {
+      alert('マイクへのアクセスが許可されていません。\nSettings → Safari → マイク を確認してください。');
+    }
+    stopRecognition();
+  };
+
+  r.onend = () => stopRecognition();
+
+  return r;
+}
+
+function stopRecognition() {
+  isRecording = false;
+  micBtn.classList.remove('recording');
+  micBtn.textContent = '🎤';
+  voiceInterim.classList.remove('visible');
+  voiceInterim.textContent = '';
+}
+
+micBtn.addEventListener('click', () => {
+  if (micBtn.classList.contains('unsupported')) return;
+  if (isRecording) {
+    recognition?.stop();
+    return;
+  }
+  // 言語を現在の選択に合わせて初期化
+  recognition = setupSpeechRecognition();
+  if (!recognition) return;
+  try { recognition.start(); }
+  catch (e) { console.warn('Speech start error:', e); }
+});
+
+// 言語切替時にrecognitionの言語も更新
+document.querySelectorAll('.lang-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (recognition && isRecording) recognition.stop();
+    // 次回startで再生成されるのでOK
+  });
+});
+
+// ============================================================
+// Init
+// ============================================================
+loadSettings();
+loadMaterials();
+renderMode('travel');
+updateGenerateBtn();
+recognition = setupSpeechRecognition();
+
+// Mermaid 初期化
+mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
+
+// mapモード用: Mermaidレンダリング
+async function renderMermaid(source) {
+  const match = source.match(/```mermaid\s*([\s\S]*?)```/);
+  const code  = match ? match[1].trim() : source.trim();
+  if (!code) return null;
+  try {
+    const id  = 'mermaid-' + Date.now();
+    const { svg } = await mermaid.render(id, code);
+    return { svg, code };
+  } catch(e) {
+    return { svg: null, code, error: e.message };
+  }
+}
+</script>
+</body>
+</html>
+draft.html
+draft.html を表示しています。
